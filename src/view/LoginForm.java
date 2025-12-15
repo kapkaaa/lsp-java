@@ -226,7 +226,7 @@ public class LoginForm extends JFrame {
                         if (SecurityUtils.verifyPassword(password, hashedPassword)) {
                             // Hanya admin dan cashier yang bisa login ke aplikasi desktop
                             String roleName = rs.getString("role_name");
-                            if (!"admin".equals(roleName) && !"cashier".equals(roleName)) {
+                            if (!"Admin".equals(roleName) && !"Cashier".equals(roleName)) {
                                 errorMessage = "Hanya Admin dan Kasir yang dapat mengakses aplikasi ini!";
                                 return false;
                             }
@@ -295,9 +295,9 @@ public class LoginForm extends JFrame {
     
     private void openDashboard(String role) {
         SwingUtilities.invokeLater(() -> {
-            if ("admin".equals(role)) {
+            if ("Admin".equals(role)) {
                 new DashboardAdmin().setVisible(true);
-            } else if ("cashier".equals(role)) {
+            } else if ("Cashier".equals(role)) {
                 new DashboardKasir().setVisible(true);
             }
         });
