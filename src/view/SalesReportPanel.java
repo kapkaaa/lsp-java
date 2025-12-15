@@ -172,7 +172,7 @@ class SalesReportPanel extends JPanel {
                 "(t.total - SUM(td.quantity * p.cost_price)) as profit " +
                 "FROM transactions t " +
                 "JOIN users u ON t.user_id = u.id " +
-                "JOIN transaction_details td ON t.transaction_id = td.transaction_id " +
+                "JOIN transaction_details td ON t.id = td.transaction_id " +
                 "JOIN products p ON td.product_id = p.id " +
                 "WHERE t.transaction_status = 'completed' " +
                 "AND DATE(t.created_at) BETWEEN ? AND ?"
