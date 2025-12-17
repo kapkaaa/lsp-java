@@ -423,17 +423,3 @@ class ProfitReportPanel extends JPanel {
         }
     }
 }
-
-// Currency Renderer
-class CurrencyRenderer extends DefaultTableCellRenderer {
-    public Component getTableCellRendererComponent(JTable table, Object value,
-            boolean isSelected, boolean hasFocus, int row, int column) {
-        Component c = super.getTableCellRendererComponent(table, value, 
-            isSelected, hasFocus, row, column);
-        if (value instanceof Double) {
-            setText(FormatterUtils.formatCurrency((Double) value));
-            setHorizontalAlignment(SwingConstants.RIGHT);
-        }
-        return c;
-    }
-}
