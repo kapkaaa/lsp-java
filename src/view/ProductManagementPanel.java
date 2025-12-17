@@ -227,13 +227,14 @@ public class ProductManagementPanel extends JPanel {
     }
     
     private void showEditDialog() {
-        int row = table.getSelectedRow();
-        if (row == -1) {
+        int viewRow = table.getSelectedRow();
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        if (viewRow == -1) {
             JOptionPane.showMessageDialog(this, "Pilih produk yang akan diedit!");
             return;
         }
         
-        int id = (int) table.getValueAt(row, 0);
+        int id = (int) table.getValueAt(modelRow, 0);
         
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT * FROM products WHERE id = ?";
@@ -252,21 +253,37 @@ public class ProductManagementPanel extends JPanel {
                 gbc.fill = GridBagConstraints.HORIZONTAL;
                 gbc.insets = new Insets(5, 5, 5, 5);
                 
-                JTextField txtName = new JTextField(rs.getString("name"), 25);
+                // 🔐 SALIN DATA RESULTSET KE VARIABEL
+                String name = rs.getString("name");
+                int brandId = rs.getInt("brand_id");
+                int typeId  = rs.getInt("type_id");
+                int sizeId  = rs.getInt("size_id");
+                int colorId = rs.getInt("color_id");
+                double costPrice = rs.getDouble("cost_price");
+                double sellingPrice = rs.getDouble("selling_price");
+                int stock = rs.getInt("stock");
+                String status = rs.getString("status");
+
+                // 🔒 AMAN — rs sudah tidak dipakai lagi
+                rs.close();
+
+                JTextField txtName = new JTextField(name, 25);
+                JTextField txtCostPrice = new JTextField(String.valueOf(costPrice), 25);
+                JTextField txtSellingPrice = new JTextField(String.valueOf(sellingPrice), 25);
+                JTextField txtStock = new JTextField(String.valueOf(stock), 25);
+
                 JComboBox<ComboItem> cmbBrand = loadComboData("brands");
-                JComboBox<ComboItem> cmbType = loadComboData("types");
-                JComboBox<ComboItem> cmbSize = loadComboData("sizes");
+                JComboBox<ComboItem> cmbType  = loadComboData("types");
+                JComboBox<ComboItem> cmbSize  = loadComboData("sizes");
                 JComboBox<ComboItem> cmbColor = loadComboData("colors");
-                JTextField txtCostPrice = new JTextField(String.valueOf(rs.getDouble("cost_price")), 25);
-                JTextField txtSellingPrice = new JTextField(String.valueOf(rs.getDouble("selling_price")), 25);
-                JTextField txtStock = new JTextField(String.valueOf(rs.getInt("stock")), 25);
-                JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
-                
-                selectComboItem(cmbBrand, rs.getInt("brand_id"));
-                selectComboItem(cmbType, rs.getInt("type_id"));
-                selectComboItem(cmbSize, rs.getInt("size_id"));
-                selectComboItem(cmbColor, rs.getInt("color_id"));
-                cmbStatus.setSelectedItem(rs.getString("status"));
+                JComboBox<String> cmbStatus =
+                    new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
+
+                selectComboItem(cmbBrand, brandId);
+                selectComboItem(cmbType, typeId);
+                selectComboItem(cmbSize, sizeId);
+                selectComboItem(cmbColor, colorId);
+                cmbStatus.setSelectedItem(status);
                 
                 int r = 0;
                 addFormRow(panel, gbc, r++, "Nama Produk:", txtName);
@@ -423,14 +440,15 @@ public class ProductManagementPanel extends JPanel {
     }
     
     private void deleteProduct() {
-        int row = table.getSelectedRow();
-        if (row == -1) {
+        int viewRow = table.getSelectedRow();
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        if (viewRow == -1) {
             JOptionPane.showMessageDialog(this, "Pilih produk yang akan dihapus!");
             return;
         }
         
-        int id = (int) table.getValueAt(row, 0);
-        String name = (String) table.getValueAt(row, 1);
+        int id = (int) table.getValueAt(modelRow, 0);
+        String name = (String) table.getValueAt(modelRow, 1);
         
         int confirm = JOptionPane.showConfirmDialog(this,
             "Hapus produk: " + name + "?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
@@ -451,15 +469,16 @@ public class ProductManagementPanel extends JPanel {
     }
     
     private void updateStock() {
-        int row = table.getSelectedRow();
-        if (row == -1) {
+        int viewRow = table.getSelectedRow();
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        if (viewRow == -1) {
             JOptionPane.showMessageDialog(this, "Pilih produk terlebih dahulu!");
             return;
         }
         
-        int id = (int) table.getValueAt(row, 0);
-        String name = (String) table.getValueAt(row, 1);
-        int currentStock = (int) table.getValueAt(row, 8);
+        int id = (int) table.getValueAt(modelRow, 0);
+        String name = (String) table.getValueAt(modelRow, 1);
+        int currentStock = (int) table.getValueAt(modelRow, 8);
         
         String input = JOptionPane.showInputDialog(this, 
             "Stok saat ini: " + currentStock + "\nStok baru:", currentStock);

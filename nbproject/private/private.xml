@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/SecurityUtils.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/OperationalHoursValidator.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/InputValidator.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/FormatterUtils.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/SessionManager.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/User.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Brand.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/ProductType.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Size.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Color.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Product.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/ProductPhoto.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Transaction.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/TransactionDetail.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/OperationalHour.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/model/Role.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/DashboardKasir.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/Main.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/Splash.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/SalesReportPanel.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/DashboardAdmin.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/LoginForm.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/TransactionHistoryDialog.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/ProductManagementPanel.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/MasterDataPanel.java</file>
+        </group>
+    </open-files>
+</project-private>
