@@ -398,7 +398,7 @@ public class UserManagementPanel extends JPanel {
             return false;
         }
         if (!InputValidator.isValidNIK(nik.getText())) {
-            JOptionPane.showMessageDialog(this, "NIK harus 16 digit!");
+            JOptionPane.showMessageDialog(this, "NIK harus 16 digit dan berupa angka!");
             return false;
         }
         if (!InputValidator.isValidPhone(phone.getText())) {
@@ -420,7 +420,7 @@ public class UserManagementPanel extends JPanel {
         }
         if (nik.getText() != null && !nik.getText().isEmpty() && 
             !InputValidator.isValidNIK(nik.getText())) {
-            JOptionPane.showMessageDialog(this, "NIK harus 16 digit!");
+            JOptionPane.showMessageDialog(this, "NIK harus 16 digit dan berupa angka!");
             return false;
         }
         if (!InputValidator.isValidPhone(phone.getText())) {
