@@ -231,7 +231,7 @@ public class UserManagementPanel extends JPanel {
         
         JButton btnSave = new JButton("Simpan");
         btnSave.setBackground(new Color(46, 204, 113));
-        btnSave.setForeground(Color.WHITE);
+        btnSave.setForeground(new Color(46, 204, 113));
         btnSave.addActionListener(e -> {
             if (validateInput(txtName, txtUsername, txtPassword, txtNIK, txtPhone)) {
                 saveUser(null, txtName.getText(), txtUsername.getText(), 
@@ -356,7 +356,7 @@ public class UserManagementPanel extends JPanel {
                 
                 JButton btnUpdate = new JButton("Update");
                 btnUpdate.setBackground(new Color(52, 152, 219));
-                btnUpdate.setForeground(Color.WHITE);
+                btnUpdate.setForeground(new Color(52, 152, 219));
                 btnUpdate.addActionListener(e -> {
                     if (validateInputEdit(txtName, txtUsername, txtNIK, txtPhone)) {
                         updateUser(id, txtName.getText(), txtUsername.getText(),
