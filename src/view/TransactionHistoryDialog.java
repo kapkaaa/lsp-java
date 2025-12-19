@@ -361,7 +361,8 @@ public class TransactionHistoryDialog extends JDialog {
                 StringBuilder receipt = new StringBuilder();
                 receipt.append("═".repeat(50)).append("\n");
                 receipt.append("              DISTROZONE              \n");
-                receipt.append("       Kedungwaru, Tulungagung       \n");
+                receipt.append("   Jln. Raya Pegangsaan Timur No.29H  \n");
+                receipt.append("         Kelapa Gading Jakarta        \n");
                 receipt.append("          Telp: 081234567890          \n");
                 receipt.append("═".repeat(50)).append("\n\n");
                 receipt.append("Kasir  : ").append(rs1.getString("cashier")).append("\n");
