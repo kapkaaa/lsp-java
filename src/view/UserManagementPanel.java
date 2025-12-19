@@ -158,7 +158,7 @@ public class UserManagementPanel extends JPanel {
     
     private void showAddDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Karyawan", true);
-        dialog.setSize(500, 600);
+        dialog.setSize(300, 450);
         dialog.setLocationRelativeTo(this);
         
         JPanel panel = new JPanel(new GridBagLayout());
@@ -272,7 +272,7 @@ public class UserManagementPanel extends JPanel {
             
             if (rs.next()) {
                 JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Karyawan", true);
-                dialog.setSize(500, 600);
+                dialog.setSize(300, 450);
                 dialog.setLocationRelativeTo(this);
                 
                 JPanel panel = new JPanel(new GridBagLayout());
