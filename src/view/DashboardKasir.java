@@ -642,7 +642,6 @@ public class DashboardKasir extends JFrame {
         }
     }
 
-    // ✅ Struk: ambil cash_received & change_given dari database
     private void showReceipt(int transId, String transCode) {
         StringBuilder receipt = new StringBuilder();
         Connection conn = null;
