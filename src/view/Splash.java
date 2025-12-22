@@ -68,7 +68,7 @@ public class Splash extends JWindow {
         appNameLabel.setForeground(textMain);
         appNameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JLabel taglineLabel = new JLabel("Layanan Laundry Gacor");
+        JLabel taglineLabel = new JLabel("Toko Baju DistroZone");
         taglineLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         taglineLabel.setForeground(textSub);
         taglineLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
