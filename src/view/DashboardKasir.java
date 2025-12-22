@@ -69,11 +69,11 @@ public class DashboardKasir extends JFrame {
         leftPanel.setOpaque(false);
         
         lblWelcome = new JLabel("Selamat Datang, " + SessionManager.getCurrentUserName());
-        lblWelcome.setFont(new Font("Arial", Font.BOLD, 18));
+        lblWelcome.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 18));
         lblWelcome.setForeground(Color.WHITE);
         
         lblDateTime = new JLabel();
-        lblDateTime.setFont(new Font("Arial", Font.PLAIN, 13));
+        lblDateTime.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 13));
         lblDateTime.setForeground(new Color(236, 240, 241));
         
         leftPanel.add(lblWelcome);
@@ -97,7 +97,7 @@ public class DashboardKasir extends JFrame {
     
     private JButton createHeaderButton(String text, ActionListener listener) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.PLAIN, 12));
+        btn.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 12));
         btn.setBackground(new Color(41, 128, 185));
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
@@ -271,7 +271,7 @@ public class DashboardKasir extends JFrame {
         
         gbc.gridx = 1; gbc.gridy = 0;
         lblTotal = new JLabel("Rp 0");
-        lblTotal.setFont(new Font("Arial", Font.BOLD, 20));
+        lblTotal.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 20));
         lblTotal.setForeground(new Color(46, 204, 113));
         panel.add(lblTotal, gbc);
         
@@ -301,14 +301,14 @@ public class DashboardKasir extends JFrame {
         
         gbc.gridx = 1; gbc.gridy = 3;
         lblKembalian = new JLabel("Rp 0");
-        lblKembalian.setFont(new Font("Arial", Font.BOLD, 16));
+        lblKembalian.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 16));
         lblKembalian.setForeground(new Color(231, 76, 60));
         panel.add(lblKembalian, gbc);
         
         gbc.gridx = 0; gbc.gridy = 4;
         gbc.gridwidth = 2;
         JButton btnProcess = new JButton("PROSES TRANSAKSI");
-        btnProcess.setFont(new Font("Arial", Font.BOLD, 14));
+        btnProcess.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 14));
         btnProcess.setBackground(new Color(52, 152, 219));
         btnProcess.setForeground(Color.black);
         btnProcess.setPreferredSize(new Dimension(0, 40));

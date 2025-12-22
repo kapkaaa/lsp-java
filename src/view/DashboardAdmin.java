@@ -46,11 +46,11 @@ public class DashboardAdmin extends JFrame {
         leftPanel.setOpaque(false);
         
         lblWelcome = new JLabel("Dashboard Administrator");
-        lblWelcome.setFont(new Font("Arial", Font.BOLD, 20));
+        lblWelcome.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 20));
         lblWelcome.setForeground(Color.WHITE);
         
         lblDateTime = new JLabel();
-        lblDateTime.setFont(new Font("Arial", Font.PLAIN, 12));
+        lblDateTime.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 12));
         lblDateTime.setForeground(new Color(236, 240, 241));
         
         leftPanel.add(lblWelcome);
@@ -60,7 +60,7 @@ public class DashboardAdmin extends JFrame {
         rightPanel.setOpaque(false);
         
         JLabel lblUser = new JLabel("👤 " + SessionManager.getCurrentUserName());
-        lblUser.setFont(new Font("Arial", Font.BOLD, 14));
+        lblUser.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 14));
         lblUser.setForeground(Color.WHITE);
         rightPanel.add(lblUser);
         
@@ -116,7 +116,7 @@ public class DashboardAdmin extends JFrame {
     
     private JLabel createMenuLabel(String text) {
         JLabel label = new JLabel(text);
-        label.setFont(new Font("Arial", Font.BOLD, 11));
+        label.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 11));
         label.setForeground(new Color(149, 165, 166));
         label.setAlignmentX(Component.LEFT_ALIGNMENT);
         label.setBorder(BorderFactory.createEmptyBorder(10, 20, 5, 20));
@@ -126,7 +126,7 @@ public class DashboardAdmin extends JFrame {
     
     private JButton createMenuButton(String text, ActionListener listener) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Arial", Font.PLAIN, 13));
+        btn.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 13));
         btn.setForeground(Color.WHITE);
         btn.setBackground(new Color(44, 62, 80));
         btn.setHorizontalAlignment(SwingConstants.LEFT);
@@ -158,12 +158,12 @@ public class DashboardAdmin extends JFrame {
         gbc.insets = new Insets(10, 10, 10, 10);
         
         JLabel lblTitle = new JLabel("Selamat Datang di Dashboard Admin");
-        lblTitle.setFont(new Font("Arial", Font.BOLD, 24));
+        lblTitle.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 24));
         gbc.gridx = 0; gbc.gridy = 0;
         panel.add(lblTitle, gbc);
         
         JLabel lblSubtitle = new JLabel("Pilih menu di sebelah kiri untuk mengelola sistem");
-        lblSubtitle.setFont(new Font("Arial", Font.PLAIN, 14));
+        lblSubtitle.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 14));
         lblSubtitle.setForeground(Color.GRAY);
         gbc.gridy = 1;
         panel.add(lblSubtitle, gbc);

@@ -154,7 +154,7 @@ public class LoginForm extends JFrame {
         JPanel footerPanel = new JPanel();
         footerPanel.setBackground(new Color(236, 240, 241));
         footerPanel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-        JLabel lblFooter = new JLabel("© 2024 DistroZone - Kedungwaru, Tulungagung, Jawa Timur");
+        JLabel lblFooter = new JLabel("© 2024 DistroZone - Jln. Raya Pegangsaan Timur No.29H Kelapa Gading Jakarta");
         lblFooter.setFont(new Font("Arial", Font.PLAIN, 11));
         lblFooter.setForeground(new Color(127, 140, 141));
         footerPanel.add(lblFooter);
