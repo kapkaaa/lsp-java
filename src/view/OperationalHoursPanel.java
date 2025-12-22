@@ -39,10 +39,6 @@ public class OperationalHoursPanel extends JPanel {
         cmbServiceType.addActionListener(e -> loadData());
         filterPanel.add(cmbServiceType);
         
-        JButton btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> loadData());
-        filterPanel.add(btnRefresh);
-        
         // Info Label
         JLabel lblInfo = new JLabel("* Kosongkan jam untuk hari libur");
         lblInfo.setFont(new Font("Arial", Font.ITALIC, 11));

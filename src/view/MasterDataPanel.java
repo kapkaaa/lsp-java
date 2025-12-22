@@ -43,10 +43,6 @@ abstract class MasterDataPanel extends JPanel {
         });
         searchPanel.add(txtSearch);
         
-        JButton btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> loadData());
-        searchPanel.add(btnRefresh);
-        
         // Table
         String[] columns = {"ID", "Nama", "Keterangan"};
         tableModel = new DefaultTableModel(columns, 0) {

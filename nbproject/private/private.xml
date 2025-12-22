@@ -31,7 +31,8 @@
             <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/CurrencyRenderer.java</file>
             <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/UserManagementPanel.java</file>
             <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/config/SupabaseConfig.java</file>
-            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/SupabaseStorageService.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/utils/SupabaseStorage.java</file>
+            <file>file:/A:/DREAM/LSP/DistroZone-Dekstop/src/view/ProfitReportPanel.java</file>
         </group>
     </open-files>
 </project-private>

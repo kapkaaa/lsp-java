@@ -52,10 +52,6 @@ public class ProductManagementPanel extends JPanel {
         cmbStatusFilter.addActionListener(e -> loadData());
         filterPanel.add(cmbStatusFilter);
         
-        JButton btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> loadData());
-        filterPanel.add(btnRefresh);
-        
         // Table
         String[] columns = {"ID", "Nama Produk", "Merek", "Tipe", "Size", "Warna", 
                            "Harga Beli", "Harga Jual", "Stok", "Status", "Foto"};

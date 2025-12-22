@@ -50,10 +50,6 @@ public class UserManagementPanel extends JPanel {
         cmbRoleFilter.addActionListener(e -> loadData());
         filterPanel.add(cmbRoleFilter);
         
-        JButton btnRefresh = new JButton("Refresh");
-        btnRefresh.addActionListener(e -> loadData());
-        filterPanel.add(btnRefresh);
-        
         // Table
         String[] columns = {"ID", "Nama", "Username", "NIK", "Alamat", "Kota", "Telepon", "Role", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
