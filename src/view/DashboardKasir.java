@@ -4,6 +4,7 @@ import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.RoundRectangle2D;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,77 +28,225 @@ public class DashboardKasir extends JFrame {
     private JComboBox<String> cmbPaymentMethod;
     private JLabel lblTotal, lblKembalian;
     private List<CartItem> cartItems;
-    
+    private Point mousePoint;
+    private boolean isMaximized = false;
+    private Rectangle normalBounds;
+
     public DashboardKasir() {
+        setUndecorated(true);
         cartItems = new ArrayList<>();
         initComponents();
         loadProducts();
         startClock();
+        setLocationRelativeTo(null);
+        updateWindowShape();
     }
     
     private void initComponents() {
-        setTitle("Dashboard Kasir - DistroZone");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        Color bgColor = Color.decode("#b3ebf2");
+        Color textMain = Color.decode("#222222");
+        Color sidebarBg = Color.decode("#2c3e50");
+        Color accent = Color.decode("#3fc1d3");
+
         setSize(1200, 750);
-        setLocationRelativeTo(null);
+        setBackground(new Color(0, 0, 0, 0));
         setLayout(new BorderLayout());
-        
-        // Header Panel
-        JPanel headerPanel = createHeaderPanel();
-        add(headerPanel, BorderLayout.NORTH);
-        
-        // Content Panel
-        contentPanel = new JPanel(new BorderLayout(10, 10));
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        contentPanel.setBackground(Color.WHITE);
-        
-        // Create transaction interface
-        JPanel transactionPanel = createTransactionPanel();
-        contentPanel.add(transactionPanel, BorderLayout.CENTER);
-        
-        add(contentPanel, BorderLayout.CENTER);
-    }
-    
-    private JPanel createHeaderPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(52, 152, 219));
-        panel.setPreferredSize(new Dimension(0, 80));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
-        
-        // Left: Welcome message
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        // =================== PANEL UTAMA DENGAN ROUNDED CORNERS ===================
+        JPanel mainPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(bgColor);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        mainPanel.setOpaque(false);
+
+        // =================== macOS TITLE BAR ===================
+        JPanel titleBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(bgColor);
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        titleBar.setPreferredSize(new Dimension(1200, 40));
+        titleBar.setOpaque(false);
+
+        JButton btnClose = createMacOSButton(new Color(0xFF5F57));
+        JButton btnMinimize = createMacOSButton(new Color(0xFFBD2E));
+        JButton btnMaximize = createMacOSButton(new Color(0x28CA42));
+
+        btnClose.addActionListener(e -> System.exit(0));
+        btnMinimize.addActionListener(e -> setState(JFrame.ICONIFIED));
+        btnMaximize.addActionListener(e -> toggleMaximize());
+
+        titleBar.add(btnClose);
+        titleBar.add(btnMinimize);
+        titleBar.add(btnMaximize);
+
+        JLabel titleLabel = new JLabel("Dashboard Kasir - DistroZone", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(textMain);
+        titleLabel.setOpaque(false);
+        titleBar.add(Box.createHorizontalGlue());
+        titleBar.add(titleLabel);
+        titleBar.add(Box.createHorizontalGlue());
+
+        mainPanel.add(titleBar, BorderLayout.NORTH);
+
+        // =================== HEADER PANEL (DI BAWAH TITLE BAR) ===================
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(52, 152, 219));
+        headerPanel.setPreferredSize(new Dimension(0, 80));
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+
         JPanel leftPanel = new JPanel(new GridLayout(2, 1));
         leftPanel.setOpaque(false);
-        
+
         lblWelcome = new JLabel("Selamat Datang, " + SessionManager.getCurrentUserName());
-        lblWelcome.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 18));
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblWelcome.setForeground(Color.WHITE);
-        
+
         lblDateTime = new JLabel();
-        lblDateTime.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 13));
+        lblDateTime.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         lblDateTime.setForeground(new Color(236, 240, 241));
-        
+
         leftPanel.add(lblWelcome);
         leftPanel.add(lblDateTime);
-        
-        // Right: Buttons
+
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         rightPanel.setOpaque(false);
-        
+
         JButton btnHistory = createHeaderButton("Riwayat Transaksi", e -> showTransactionHistory());
         JButton btnLogout = createHeaderButton("Logout", e -> logout());
-        
+
         rightPanel.add(btnHistory);
         rightPanel.add(btnLogout);
-        
-        panel.add(leftPanel, BorderLayout.WEST);
-        panel.add(rightPanel, BorderLayout.EAST);
-        
-        return panel;
+
+        headerPanel.add(leftPanel, BorderLayout.WEST);
+        headerPanel.add(rightPanel, BorderLayout.EAST);
+
+        // =================== TRANSACTION PANEL ===================
+        JPanel transactionPanel = createTransactionPanel();
+        transactionPanel.setOpaque(false);
+
+        // =================== ASSEMBLE LAYOUT ===================
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
+        centerPanel.setOpaque(false);
+        centerPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        centerPanel.add(headerPanel, BorderLayout.NORTH);
+        centerPanel.add(transactionPanel, BorderLayout.CENTER);
+
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+        add(mainPanel, BorderLayout.CENTER);
+
+        // Drag window
+        addWindowDrag(titleBar);
+        normalBounds = getBounds();
     }
-    
+
+    // =================== UTILITAS ===================
+
+    private JButton createMacOSButton(Color color) {
+        JButton button = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(color);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+
+                if (getModel().isRollover()) {
+                    g2.setColor(Color.BLACK);
+                    g2.setStroke(new BasicStroke(1.2f));
+                    int cx = getWidth() / 2;
+                    int cy = getHeight() / 2;
+
+                    if (color.equals(new Color(0xFF5F57))) { // Close
+                        g2.drawLine(cx - 3, cy - 3, cx + 3, cy + 3);
+                        g2.drawLine(cx + 3, cy - 3, cx - 3, cy + 3);
+                    } else if (color.equals(new Color(0xFFBD2E))) { // Minimize
+                        g2.drawLine(cx - 3, cy, cx + 3, cy);
+                    } else if (color.equals(new Color(0x28CA42))) { // Maximize/Restore
+                        if (isMaximized) {
+                            g2.drawRect(cx - 2, cy - 1, 3, 3);
+                            g2.drawRect(cx - 1, cy - 2, 3, 3);
+                        } else {
+                            g2.drawRect(cx - 2, cy - 2, 4, 4);
+                        }
+                    }
+                }
+                g2.dispose();
+            }
+        };
+        button.setPreferredSize(new Dimension(14, 14));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                button.setPreferredSize(new Dimension(15, 15));
+                button.revalidate();
+                button.repaint();
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setPreferredSize(new Dimension(14, 14));
+                button.revalidate();
+                button.repaint();
+            }
+        });
+
+        return button;
+    }
+
+    private void toggleMaximize() {
+        if (isMaximized) {
+            setBounds(normalBounds);
+            isMaximized = false;
+        } else {
+            normalBounds = getBounds();
+            GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+            Rectangle screenBounds = ge.getMaximumWindowBounds();
+            setBounds(screenBounds);
+            isMaximized = true;
+        }
+        updateWindowShape();
+    }
+
+    private void addWindowDrag(Component comp) {
+        comp.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                mousePoint = e.getPoint();
+            }
+        });
+        comp.addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                if (!isMaximized) {
+                    Point curr = e.getLocationOnScreen();
+                    setLocation(curr.x - mousePoint.x, curr.y - mousePoint.y);
+                }
+            }
+        });
+    }
+
     private JButton createHeaderButton(String text, ActionListener listener) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI  Emoji", Font.PLAIN, 12));
+        btn.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         btn.setBackground(new Color(41, 128, 185));
         btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
@@ -117,7 +266,11 @@ public class DashboardKasir extends JFrame {
         
         return btn;
     }
-    
+
+    // ... (SEMUA METHOD LOGIKA TRANSAKSI TETAP SAMA: loadProducts, addToCart, processTransaction, dll)
+
+    // ✅ Salin SEMUA METHOD DARI KODE ASLI ANDA DI BAWAH INI (mulai dari createTransactionPanel() sampai CurrencyRenderer)
+
     private JPanel createTransactionPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(Color.WHITE);
@@ -148,19 +301,13 @@ public class DashboardKasir extends JFrame {
         
         searchPanel.add(new JLabel("Cari:"));
         txtSearch = new JTextField(20);
+        txtSearch.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         txtSearch.addKeyListener(new KeyAdapter() {
             public void keyReleased(KeyEvent e) {
                 searchProducts();
             }
         });
         searchPanel.add(txtSearch);
-        
-//        JButton btnRefresh = new JButton("Refresh");
-//        btnRefresh.addActionListener(e -> {
-//            txtSearch.setText("");
-//            loadProducts();
-//        });
-//        searchPanel.add(btnRefresh);
         
         // Product table
         String[] columns = {"ID", "Produk", "Merek", "Warna", "Size", "Stok", "Harga"};
@@ -172,6 +319,8 @@ public class DashboardKasir extends JFrame {
         };
         
         productTable = new JTable(productTableModel);
+        productTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        productTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
         productTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         productTable.setRowHeight(25);
         productTable.getColumnModel().getColumn(0).setPreferredWidth(40);
@@ -191,8 +340,11 @@ public class DashboardKasir extends JFrame {
         btnPanel.setBackground(Color.WHITE);
         
         JButton btnAdd = new JButton("Tambah ke Keranjang");
+        btnAdd.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btnAdd.setBackground(new Color(46, 204, 113));
         btnAdd.setForeground(Color.black);
+        btnAdd.setFocusPainted(false);
+        btnAdd.setBorderPainted(false);
         btnAdd.addActionListener(e -> addToCart());
         btnPanel.add(btnAdd);
         
@@ -217,6 +369,8 @@ public class DashboardKasir extends JFrame {
         };
         
         cartTable = new JTable(cartTableModel);
+        cartTable.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cartTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
         cartTable.setRowHeight(25);
         cartTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         cartTable.getColumnModel().getColumn(1).setCellRenderer(new CurrencyRenderer());
@@ -228,16 +382,21 @@ public class DashboardKasir extends JFrame {
         cartBtnPanel.setBackground(Color.WHITE);
         
         JButton btnUpdate = new JButton("Update");
+        btnUpdate.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btnUpdate.addActionListener(e -> updateCartQuantityViaDialog());
         cartBtnPanel.add(btnUpdate);
         
         JButton btnRemove = new JButton("Hapus");
+        btnRemove.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btnRemove.setBackground(new Color(231, 76, 60));
         btnRemove.setForeground(Color.black);
+        btnRemove.setFocusPainted(false);
+        btnRemove.setBorderPainted(false);
         btnRemove.addActionListener(e -> removeFromCart());
         cartBtnPanel.add(btnRemove);
         
         JButton btnClear = new JButton("Kosongkan");
+        btnClear.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         btnClear.addActionListener(e -> clearCart());
         cartBtnPanel.add(btnClear);
         
@@ -267,27 +426,35 @@ public class DashboardKasir extends JFrame {
         gbc.insets = new Insets(5, 5, 5, 5);
         
         gbc.gridx = 0; gbc.gridy = 0;
-        panel.add(new JLabel("TOTAL:"), gbc);
+        JLabel lblTotalLabel = new JLabel("TOTAL:");
+        lblTotalLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        panel.add(lblTotalLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 0;
         lblTotal = new JLabel("Rp 0");
-        lblTotal.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 20));
+        lblTotal.setFont(new Font("Segoe UI", Font.BOLD, 20));
         lblTotal.setForeground(new Color(46, 204, 113));
         panel.add(lblTotal, gbc);
         
         gbc.gridx = 0; gbc.gridy = 1;
-        panel.add(new JLabel("Metode Bayar:"), gbc);
+        JLabel lblMethodLabel = new JLabel("Metode Bayar:");
+        lblMethodLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        panel.add(lblMethodLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 1;
         cmbPaymentMethod = new JComboBox<>(new String[]{"cash", "qris", "transfer"});
+        cmbPaymentMethod.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         cmbPaymentMethod.addActionListener(e -> updatePaymentFields());
         panel.add(cmbPaymentMethod, gbc);
         
         gbc.gridx = 0; gbc.gridy = 2;
-        panel.add(new JLabel("Tunai:"), gbc);
+        JLabel lblTunaiLabel = new JLabel("Tunai:");
+        lblTunaiLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        panel.add(lblTunaiLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 2;
         txtTunai = new JTextField("0");
+        txtTunai.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         txtTunai.setColumns(15);
         txtTunai.addKeyListener(new KeyAdapter() {
             public void keyReleased(KeyEvent e) {
@@ -297,20 +464,24 @@ public class DashboardKasir extends JFrame {
         panel.add(txtTunai, gbc);
         
         gbc.gridx = 0; gbc.gridy = 3;
-        panel.add(new JLabel("Kembalian:"), gbc);
+        JLabel lblKembalianLabel = new JLabel("Kembalian:");
+        lblKembalianLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        panel.add(lblKembalianLabel, gbc);
         
         gbc.gridx = 1; gbc.gridy = 3;
         lblKembalian = new JLabel("Rp 0");
-        lblKembalian.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 16));
+        lblKembalian.setFont(new Font("Segoe UI", Font.BOLD, 16));
         lblKembalian.setForeground(new Color(231, 76, 60));
         panel.add(lblKembalian, gbc);
         
         gbc.gridx = 0; gbc.gridy = 4;
         gbc.gridwidth = 2;
         JButton btnProcess = new JButton("PROSES TRANSAKSI");
-        btnProcess.setFont(new Font("Segoe UI  Emoji", Font.BOLD, 14));
+        btnProcess.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnProcess.setBackground(new Color(52, 152, 219));
         btnProcess.setForeground(Color.black);
+        btnProcess.setFocusPainted(false);
+        btnProcess.setBorderPainted(false);
         btnProcess.setPreferredSize(new Dimension(0, 40));
         btnProcess.addActionListener(e -> processTransaction());
         panel.add(btnProcess, gbc);
@@ -629,6 +800,7 @@ public class DashboardKasir extends JFrame {
             
             clearCart();
             loadProducts();
+            txtTunai.setText("");
             
         } catch (SQLException e) {
             if (conn != null) {
@@ -756,7 +928,7 @@ public class DashboardKasir extends JFrame {
         if (confirm == JOptionPane.YES_OPTION) {
             SessionManager.clearSession();
             dispose();
-            new LoginForm().setVisible(true);
+            SwingUtilities.invokeLater(() -> new LoginForm().setVisible(true));
         }
     }
     
@@ -785,5 +957,32 @@ public class DashboardKasir extends JFrame {
             }
             return c;
         }
+    }
+
+    // =================== ROUNDED CORNERS ===================
+    private void updateWindowShape() {
+        if (!isMaximized) {
+            int arc = 20;
+            Shape shape = new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), arc, arc);
+            setShape(shape);
+        } else {
+            setShape(null);
+        }
+    }
+
+    @Override
+    public void setSize(int width, int height) {
+        super.setSize(width, height);
+        updateWindowShape();
+    }
+
+    @Override
+    public void setBounds(int x, int y, int width, int height) {
+        super.setBounds(x, y, width, height);
+        updateWindowShape();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new DashboardKasir().setVisible(true));
     }
 }
