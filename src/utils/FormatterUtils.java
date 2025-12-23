@@ -2,11 +2,21 @@ package utils;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 
 /**
  * Utility class untuk formatting data (currency, date, dll)
  */
 public class FormatterUtils {
+    
+    private static final Locale LOCALE_ID = new Locale("id", "ID");
+    private static final DateTimeFormatter FORMAT_INDO =
+        DateTimeFormatter.ofPattern(
+            "EEEE, dd MMMM yyyy HH:mm:ss",
+            LOCALE_ID
+        );
     
     /**
      * Format angka menjadi format Rupiah
@@ -24,14 +34,9 @@ public class FormatterUtils {
      */
     public static String formatDate(Timestamp timestamp) {
         if (timestamp == null) return "-";
-        LocalDateTime ldt = timestamp.toLocalDateTime();
-        return String.format("%02d/%02d/%d %02d:%02d",
-            ldt.getDayOfMonth(),
-            ldt.getMonthValue(),
-            ldt.getYear(),
-            ldt.getHour(),
-            ldt.getMinute());
+        return timestamp.toLocalDateTime().format(FORMAT_INDO);
     }
+
     
     /**
      * Format timestamp menjadi string tanggal saja (tanpa waktu)
