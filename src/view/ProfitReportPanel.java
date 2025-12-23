@@ -22,7 +22,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-// Profit Report Panel — Versi Kavi Laundry
+// Profit Report Panel — Satu Baris + Auto-Refresh (Versi Kavi Laundry)
 class ProfitReportPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTable table;
@@ -35,6 +35,7 @@ class ProfitReportPanel extends JPanel {
     
     private void initComponents() {
         setLayout(new BorderLayout(10, 10));
+        setBackground(Color.WHITE);
         
         // Header
         JLabel lblTitle = new JLabel("Laporan Laba/Rugi");
@@ -42,7 +43,7 @@ class ProfitReportPanel extends JPanel {
         lblTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         add(lblTitle, BorderLayout.NORTH);
         
-        // Filter Panel
+        // Filter Panel — SATU BARIS
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         filterPanel.setBackground(Color.WHITE);
         
@@ -62,10 +63,8 @@ class ProfitReportPanel extends JPanel {
         dateTo.setDate(new java.util.Date());
         filterPanel.add(dateTo);
         
-        JButton btnFilter = createStyledButton("Tampilkan", new Color(52, 152, 219), e -> loadData());
+        // HANYA TOMBOL EXPORT
         JButton btnExport = createStyledButton("Export Excel", new Color(46, 204, 113), e -> exportToExcel());
-        
-        filterPanel.add(btnFilter);
         filterPanel.add(btnExport);
         
         // Summary Panel
@@ -95,13 +94,11 @@ class ProfitReportPanel extends JPanel {
         table.setSelectionBackground(new Color(236, 240, 241));
         table.setSelectionForeground(Color.BLACK);
         
-        // Style table header
         JTableHeader header = table.getTableHeader();
         header.setBackground(new Color(236, 240, 241));
         header.setForeground(Color.BLACK);
         header.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
         
-        // Currency renderers
         table.getColumnModel().getColumn(3).setCellRenderer(new CurrencyRenderer());
         table.getColumnModel().getColumn(4).setCellRenderer(new CurrencyRenderer());
         table.getColumnModel().getColumn(5).setCellRenderer(new CurrencyRenderer());
@@ -122,6 +119,10 @@ class ProfitReportPanel extends JPanel {
         
         add(centerPanel, BorderLayout.CENTER);
         
+        // Auto-refresh saat tanggal berubah
+        dateFrom.getDateEditor().addPropertyChangeListener("date", e -> loadData());
+        dateTo.getDateEditor().addPropertyChangeListener("date", e -> loadData());
+        
         loadData();
     }
     
@@ -129,7 +130,6 @@ class ProfitReportPanel extends JPanel {
     private JPanel createSummaryCard(String title, String value, Color color) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(color);
-        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         card.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
             BorderFactory.createEmptyBorder(15, 15, 15, 15)
@@ -200,16 +200,13 @@ class ProfitReportPanel extends JPanel {
     }
     
     private void loadData() {
-        // ... (logika loadData tetap sama seperti sebelumnya, tanpa perubahan)
         tableModel.setRowCount(0);
         
         if (dateFrom.getDate() == null || dateTo.getDate() == null) {
-            JOptionPane.showMessageDialog(this, "Pilih periode tanggal!");
-            return;
+            return; // Jangan tampilkan error, cukup kosongkan
         }
 
         if (dateFrom.getDate().after(dateTo.getDate())) {
-            JOptionPane.showMessageDialog(this, "Tanggal 'Dari' tidak boleh lebih besar dari 'Sampai'!");
             return;
         }
         
@@ -350,7 +347,6 @@ class ProfitReportPanel extends JPanel {
         return style;
     }
     
-    // Currency renderer (pastikan ada)
     private static class CurrencyRenderer extends DefaultTableCellRenderer {
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
