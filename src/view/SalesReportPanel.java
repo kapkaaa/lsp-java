@@ -3,9 +3,10 @@ package view;
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.*;
 import java.io.FileOutputStream;
 import java.sql.*;
-import java.util.List;
 import com.toedter.calendar.JDateChooser;
 import config.DatabaseConfig;
 import utils.FormatterUtils;
@@ -21,7 +22,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-// Sales Report Panel
+// Sales Report Panel — Satu Baris + Auto-Refresh
 class SalesReportPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTable table;
@@ -39,47 +40,47 @@ class SalesReportPanel extends JPanel {
         
         // Header
         JLabel lblTitle = new JLabel("Laporan Penjualan");
-        lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         lblTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         add(lblTitle, BorderLayout.NORTH);
         
-        // Filter Panel
+        // Filter Panel — SATU BARIS
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         filterPanel.setBackground(Color.WHITE);
         
         filterPanel.add(new JLabel("Dari:"));
         dateFrom = new JDateChooser();
-        dateFrom.setPreferredSize(new Dimension(120, 25));
+        dateFrom.setPreferredSize(new Dimension(130, 30));
+        styleDateChooser(dateFrom);
         filterPanel.add(dateFrom);
         
         filterPanel.add(new JLabel("Sampai:"));
         dateTo = new JDateChooser();
-        dateTo.setPreferredSize(new Dimension(120, 25));
+        dateTo.setPreferredSize(new Dimension(130, 30));
+        styleDateChooser(dateTo);
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_MONTH, -7);
+        dateFrom.setDate(cal.getTime());
         dateTo.setDate(new java.util.Date());
         filterPanel.add(dateTo);
         
         filterPanel.add(new JLabel("Kasir:"));
         cmbCashier = new JComboBox<>();
+        cmbCashier.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        cmbCashier.setBackground(Color.WHITE);
+        cmbCashier.setForeground(Color.decode("#222222"));
         cmbCashier.addItem("Semua");
         loadCashiers();
         filterPanel.add(cmbCashier);
         
-        JButton btnFilter = new JButton("Tampilkan");
-        btnFilter.setBackground(new Color(52, 152, 219));
-        btnFilter.setForeground(Color.WHITE);
-        btnFilter.addActionListener(e -> loadData());
-        filterPanel.add(btnFilter);
-        
-        JButton btnExport = new JButton("Export Excel");
-        btnExport.setBackground(new Color(46, 204, 113));
-        btnExport.setForeground(Color.WHITE);
-        btnExport.addActionListener(e -> exportToExcel());
+        // HANYA TOMBOL EXPORT
+        JButton btnExport = createStyledButton("Export Excel", new Color(46, 204, 113), e -> exportToExcel());
         filterPanel.add(btnExport);
         
         // Summary Panel
-        JPanel summaryPanel = new JPanel(new GridLayout(1, 3, 10, 0));
+        JPanel summaryPanel = new JPanel(new GridLayout(1, 3, 15, 0));
         summaryPanel.setBackground(Color.WHITE);
-        summaryPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        summaryPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 15, 0));
         
         summaryPanel.add(createSummaryCard("Total Transaksi", "0", new Color(52, 152, 219)));
         summaryPanel.add(createSummaryCard("Total Pendapatan", "Rp 0", new Color(46, 204, 113)));
@@ -96,12 +97,23 @@ class SalesReportPanel extends JPanel {
         };
         
         table = new JTable(tableModel);
-        table.setRowHeight(25);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        table.setRowHeight(28);
+        table.setSelectionBackground(new Color(236, 240, 241));
+        table.setSelectionForeground(Color.BLACK);
+        
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(new Color(236, 240, 241));
+        header.setForeground(Color.BLACK);
+        header.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+        
         table.getColumnModel().getColumn(3).setCellRenderer(new CurrencyRenderer());
         table.getColumnModel().getColumn(5).setCellRenderer(new CurrencyRenderer());
         table.getColumnModel().getColumn(6).setCellRenderer(new CurrencyRenderer());
         
         JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
         
         JPanel topPanel = new JPanel(new BorderLayout(5, 5));
         topPanel.setBackground(Color.WHITE);
@@ -115,42 +127,84 @@ class SalesReportPanel extends JPanel {
         
         add(centerPanel, BorderLayout.CENTER);
         
-        // Load data for last 7 days by default
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.add(java.util.Calendar.DAY_OF_MONTH, -7);
-        dateFrom.setDate(cal.getTime());
-        dateTo.setDate(new java.util.Date());
+        // Auto-refresh listeners
+        dateFrom.getDateEditor().addPropertyChangeListener("date", e -> loadData());
+        dateTo.getDateEditor().addPropertyChangeListener("date", e -> loadData());
+        cmbCashier.addActionListener(e -> loadData());
+        
         loadData();
     }
     
+    // Helper: summary card stylish
     private JPanel createSummaryCard(String title, String value, Color color) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(color);
-        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
         
         JLabel lblTitle = new JLabel(title);
         lblTitle.setForeground(Color.WHITE);
-        lblTitle.setFont(new Font("Arial", Font.PLAIN, 12));
+        lblTitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         
         JLabel lblValue;
-        if (title.equals("Total Transaksi")) {
-            lblTotalTransactions = new JLabel(value);
-            lblValue = lblTotalTransactions;
-        } else if (title.equals("Total Pendapatan")) {
-            lblTotalRevenue = new JLabel(value);
-            lblValue = lblTotalRevenue;
-        } else {
-            lblTotalProfit = new JLabel(value);
-            lblValue = lblTotalProfit;
+        switch (title) {
+            case "Total Transaksi": lblTotalTransactions = new JLabel(value); lblValue = lblTotalTransactions; break;
+            case "Total Pendapatan": lblTotalRevenue = new JLabel(value); lblValue = lblTotalRevenue; break;
+            default: lblTotalProfit = new JLabel(value); lblValue = lblTotalProfit; break;
         }
         
         lblValue.setForeground(Color.WHITE);
-        lblValue.setFont(new Font("Arial", Font.BOLD, 20));
+        lblValue.setFont(new Font("Segoe UI", Font.BOLD, 16));
         
         card.add(lblTitle, BorderLayout.NORTH);
         card.add(lblValue, BorderLayout.CENTER);
         
         return card;
+    }
+    
+    // Helper: tombol berwarna
+    private JButton createStyledButton(String text, Color bgColor, ActionListener listener) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(bgColor.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(bgColor.brighter());
+                } else {
+                    g2.setColor(bgColor);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFocusPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setPreferredSize(new Dimension(120, 32));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(listener);
+        return btn;
+    }
+    
+    // Helper: date chooser stylish
+    private void styleDateChooser(JDateChooser chooser) {
+        JFormattedTextField textField =
+        (JFormattedTextField) chooser.getDateEditor().getUiComponent();
+        textField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        textField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        ));
+        textField.setBackground(Color.WHITE);
+        textField.setForeground(Color.decode("#222222"));
     }
     
     private void loadCashiers() {
@@ -173,13 +227,10 @@ class SalesReportPanel extends JPanel {
         tableModel.setRowCount(0);
         
         if (dateFrom.getDate() == null || dateTo.getDate() == null) {
-            JOptionPane.showMessageDialog(this, "Pilih periode tanggal!");
             return;
         }
 
-        // Validasi: dateFrom tidak boleh setelah dateTo
         if (dateFrom.getDate().after(dateTo.getDate())) {
-            JOptionPane.showMessageDialog(this, "Tanggal 'Dari' tidak boleh lebih besar dari 'Sampai'!");
             return;
         }
         
@@ -235,7 +286,6 @@ class SalesReportPanel extends JPanel {
                 tableModel.addRow(row);
             }
             
-            // Update summary
             lblTotalTransactions.setText(String.valueOf(count));
             lblTotalRevenue.setText(FormatterUtils.formatCurrency(totalRevenue));
             lblTotalProfit.setText(FormatterUtils.formatCurrency(totalProfit));
@@ -263,10 +313,8 @@ class SalesReportPanel extends JPanel {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Laporan Penjualan");
 
-            // Header style
             CellStyle headerStyle = createHeaderCellStyle(workbook);
 
-            // Header
             Row headerRow = sheet.createRow(0);
             String[] columns = {"Kode Transaksi", "Tanggal", "Kasir", "Total", 
                                "Metode Bayar", "HPP", "Laba"};
@@ -276,7 +324,6 @@ class SalesReportPanel extends JPanel {
                 cell.setCellStyle(headerStyle);
             }
 
-            // Data
             for (int r = 0; r < tableModel.getRowCount(); r++) {
                 Row row = sheet.createRow(r + 1);
                 for (int c = 0; c < tableModel.getColumnCount(); c++) {
@@ -293,12 +340,10 @@ class SalesReportPanel extends JPanel {
                 }
             }
 
-            // Auto-size columns
             for (int i = 0; i < columns.length; i++) {
                 sheet.autoSizeColumn(i);
             }
 
-            // Write file
             try (FileOutputStream out = new FileOutputStream(fileChooser.getSelectedFile())) {
                 workbook.write(out);
             }
@@ -325,5 +370,18 @@ class SalesReportPanel extends JPanel {
         CellStyle style = workbook.createCellStyle();
         style.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("#,##0.00"));
         return style;
+    }
+    
+    private static class CurrencyRenderer extends DefaultTableCellRenderer {
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, 
+                isSelected, hasFocus, row, column);
+            if (value instanceof Double) {
+                setText(FormatterUtils.formatCurrency((Double) value));
+                setHorizontalAlignment(SwingConstants.RIGHT);
+            }
+            return c;
+        }
     }
 }
