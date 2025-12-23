@@ -8,7 +8,6 @@ import java.sql.*;
 import java.util.*;
 import java.util.List;
 import java.io.File;
-import java.io.IOException;
 import javax.imageio.ImageIO;
 import config.DatabaseConfig;
 import utils.*;
@@ -18,7 +17,6 @@ public class ProductManagementPanel extends JPanel {
     private JTable table;
     private JTextField txtSearch;
     private JComboBox<String> cmbStatusFilter;
-    private List<File> selectedPhotos = new ArrayList<>();
     
     public ProductManagementPanel() {
         initComponents();
@@ -29,7 +27,7 @@ public class ProductManagementPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBackground(Color.WHITE);
         
-        JLabel lblTitle = new JLabel("Kelola Produk");
+        JLabel lblTitle = new JLabel("Kelola Produk & Varian");
         lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
         lblTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
         add(lblTitle, BorderLayout.NORTH);
@@ -52,9 +50,12 @@ public class ProductManagementPanel extends JPanel {
         cmbStatusFilter.addActionListener(e -> loadData());
         filterPanel.add(cmbStatusFilter);
         
+        JButton btnRefresh = new JButton("Refresh");
+        btnRefresh.addActionListener(e -> loadData());
+        filterPanel.add(btnRefresh);
+        
         // Table
-        String[] columns = {"ID", "Nama Produk", "Merek", "Tipe", "Size", "Warna", 
-                           "Harga Beli", "Harga Jual", "Stok", "Status", "Foto"};
+        String[] columns = {"ID", "Nama Produk", "Merek", "Tipe", "Harga Beli", "Harga Jual", "Total Varian"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -64,10 +65,10 @@ public class ProductManagementPanel extends JPanel {
         
         table = new JTable(tableModel);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.setRowHeight(25);
-        table.getColumnModel().getColumn(0).setPreferredWidth(40);
-        table.getColumnModel().getColumn(6).setCellRenderer(new CurrencyRenderer());
-        table.getColumnModel().getColumn(7).setCellRenderer(new CurrencyRenderer());
+        table.setRowHeight(30);
+        table.getColumnModel().getColumn(0).setPreferredWidth(50);
+        table.getColumnModel().getColumn(4).setCellRenderer(new CurrencyRenderer());
+        table.getColumnModel().getColumn(5).setCellRenderer(new CurrencyRenderer());
         
         JScrollPane scrollPane = new JScrollPane(table);
         
@@ -75,17 +76,15 @@ public class ProductManagementPanel extends JPanel {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         buttonPanel.setBackground(Color.WHITE);
         
-        JButton btnAdd = createButton("Tambah Produk", new Color(46, 204, 113), e -> showAddDialog());
-        JButton btnEdit = createButton("Edit Produk", new Color(52, 152, 219), e -> showEditDialog());
+        JButton btnAdd = createButton("Tambah Produk", new Color(46, 204, 113), e -> showAddProductDialog());
+        JButton btnEdit = createButton("Edit Produk", new Color(52, 152, 219), e -> showEditProductDialog());
         JButton btnDelete = createButton("Hapus", new Color(231, 76, 60), e -> deleteProduct());
-        JButton btnUpdateStock = createButton("Update Stok", new Color(241, 196, 15), e -> updateStock());
-        JButton btnViewPhotos = createButton("Lihat Foto", new Color(155, 89, 182), e -> viewProductPhotos());
+        JButton btnViewVariants = createButton("Kelola Varian", new Color(155, 89, 182), e -> manageProductVariants());
         
         buttonPanel.add(btnAdd);
         buttonPanel.add(btnEdit);
         buttonPanel.add(btnDelete);
-        buttonPanel.add(btnUpdateStock);
-        buttonPanel.add(btnViewPhotos);
+        buttonPanel.add(btnViewVariants);
         
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.setBackground(Color.WHITE);
@@ -110,43 +109,30 @@ public class ProductManagementPanel extends JPanel {
     
     private void loadData() {
         tableModel.setRowCount(0);
-        String statusFilter = (String) cmbStatusFilter.getSelectedItem();
         
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT p.id, p.name, b.name as brand, t.name as type, " +
-                        "s.name as size, c.name as color, p.cost_price, p.selling_price, " +
-                        "p.stock, p.status, COUNT(pp.id) as photo_count FROM products p " +
+                        "p.cost_price, p.selling_price, " +
+                        "COUNT(DISTINCT pd.id) as variant_count " +
+                        "FROM products p " +
                         "JOIN brands b ON p.brand_id = b.id " +
                         "JOIN types t ON p.type_id = t.id " +
-                        "JOIN sizes s ON p.size_id = s.id " +
-                        "JOIN colors c ON p.color_id = c.id " +
-                        "LEFT JOIN product_photos pp ON p.id = pp.product_id";
+                        "LEFT JOIN product_details pd ON p.id = pd.product_id " +
+                        "GROUP BY p.id, p.name, b.name, t.name, p.cost_price, p.selling_price " +
+                        "ORDER BY p.name";
             
-            if (!"Semua".equals(statusFilter)) {
-                sql += " WHERE p.status = ?";
-            }
-            sql += " GROUP BY p.id, p.name, b.name, t.name, s.name, c.name, p.cost_price, p.selling_price, p.stock, p.status";
-            sql += " ORDER BY p.name";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
             
-            PreparedStatement ps = conn.prepareStatement(sql);
-            if (!"Semua".equals(statusFilter)) {
-                ps.setString(1, statusFilter);
-            }
-            
-            ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Object[] row = {
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getString("brand"),
                     rs.getString("type"),
-                    rs.getString("size"),
-                    rs.getString("color"),
                     rs.getDouble("cost_price"),
                     rs.getDouble("selling_price"),
-                    rs.getInt("stock"),
-                    rs.getString("status"),
-                    rs.getInt("photo_count") + " foto"
+                    rs.getInt("variant_count") + " varian"
                 };
                 tableModel.addRow(row);
             }
@@ -167,11 +153,9 @@ public class ProductManagementPanel extends JPanel {
         }
     }
     
-    private void showAddDialog() {
-        selectedPhotos.clear();
-        
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Produk", true);
-        dialog.setSize(600, 750);
+    private void showAddProductDialog() {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Produk Baru", true);
+        dialog.setSize(600, 400);
         dialog.setLocationRelativeTo(this);
         
         JPanel panel = new JPanel(new GridBagLayout());
@@ -183,87 +167,47 @@ public class ProductManagementPanel extends JPanel {
         JTextField txtName = new JTextField(25);
         JComboBox<ComboItem> cmbBrand = loadComboData("brands");
         JComboBox<ComboItem> cmbType = loadComboData("types");
-        JComboBox<ComboItem> cmbSize = loadComboData("sizes");
-        JComboBox<ComboItem> cmbColor = loadComboData("colors");
         JTextField txtCostPrice = new JTextField(25);
         JTextField txtSellingPrice = new JTextField(25);
-        JTextField txtStock = new JTextField(25);
-        JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
-        
-        // Photo selection panel
-        JPanel photoPanel = new JPanel(new BorderLayout(5, 5));
-        JLabel lblPhotoCount = new JLabel("0 foto dipilih");
-        JButton btnSelectPhotos = new JButton("Pilih Foto");
-        btnSelectPhotos.addActionListener(e -> {
-            selectPhotos();
-            lblPhotoCount.setText(selectedPhotos.size() + " foto dipilih");
-        });
-        photoPanel.add(btnSelectPhotos, BorderLayout.WEST);
-        photoPanel.add(lblPhotoCount, BorderLayout.CENTER);
         
         int row = 0;
         addFormRow(panel, gbc, row++, "Nama Produk:", txtName);
         addFormRow(panel, gbc, row++, "Merek:", cmbBrand);
         addFormRow(panel, gbc, row++, "Tipe:", cmbType);
-        addFormRow(panel, gbc, row++, "Size:", cmbSize);
-        addFormRow(panel, gbc, row++, "Warna:", cmbColor);
         addFormRow(panel, gbc, row++, "Harga Beli:", txtCostPrice);
         addFormRow(panel, gbc, row++, "Harga Jual:", txtSellingPrice);
-        addFormRow(panel, gbc, row++, "Stok Awal:", txtStock);
-        addFormRow(panel, gbc, row++, "Status:", cmbStatus);
-        addFormRow(panel, gbc, row++, "Foto Produk:", photoPanel);
         
-        gbc.gridx = 0; gbc.gridy = row;
+        // Info label
+        gbc.gridx = 0; gbc.gridy = row++;
         gbc.gridwidth = 2;
+        JLabel lblInfo = new JLabel("<html><i>* Setelah produk dibuat, Anda dapat menambahkan varian (warna, size, stok, foto)</i></html>");
+        lblInfo.setForeground(Color.GRAY);
+        panel.add(lblInfo, gbc);
+        
+        gbc.gridy = row;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         
-        JButton btnSave = new JButton("Simpan");
+        JButton btnSave = new JButton("Simpan & Tambah Varian");
         btnSave.setBackground(new Color(46, 204, 113));
         btnSave.setForeground(Color.WHITE);
+        btnSave.setFocusPainted(false);
         btnSave.addActionListener(e -> {
-            if (validateProductInput(txtName, txtCostPrice, txtSellingPrice, txtStock)) {
-                // Show progress dialog
-                JDialog progressDialog = new JDialog(dialog, "Menyimpan...", true);
-                JProgressBar progressBar = new JProgressBar();
-                progressBar.setIndeterminate(true);
-                progressDialog.add(progressBar);
-                progressDialog.setSize(300, 100);
-                progressDialog.setLocationRelativeTo(dialog);
+            if (validateProductInput(txtName, txtCostPrice, txtSellingPrice)) {
+                int productId = saveProduct(
+                    txtName.getText(),
+                    ((ComboItem)cmbBrand.getSelectedItem()).getId(),
+                    ((ComboItem)cmbType.getSelectedItem()).getId(),
+                    Double.parseDouble(txtCostPrice.getText()),
+                    Double.parseDouble(txtSellingPrice.getText())
+                );
                 
-                SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-                    @Override
-                    protected Boolean doInBackground() {
-                        return saveProductWithPhotos(
-                            txtName.getText(),
-                            ((ComboItem)cmbBrand.getSelectedItem()).getId(),
-                            ((ComboItem)cmbType.getSelectedItem()).getId(),
-                            ((ComboItem)cmbSize.getSelectedItem()).getId(),
-                            ((ComboItem)cmbColor.getSelectedItem()).getId(),
-                            Double.parseDouble(txtCostPrice.getText()),
-                            Double.parseDouble(txtSellingPrice.getText()),
-                            Integer.parseInt(txtStock.getText()),
-                            (String)cmbStatus.getSelectedItem(),
-                            selectedPhotos
-                        );
-                    }
-                    
-                    @Override
-                    protected void done() {
-                        progressDialog.dispose();
-                        try {
-                            if (get()) {
-                                JOptionPane.showMessageDialog(dialog, "Produk berhasil ditambahkan!");
-                                dialog.dispose();
-                                loadData();
-                            }
-                        } catch (Exception ex) {
-                            JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage());
-                        }
-                    }
-                };
-                
-                worker.execute();
-                progressDialog.setVisible(true);
+                if (productId > 0) {
+                    JOptionPane.showMessageDialog(dialog, "Produk berhasil dibuat!\nSilakan tambahkan varian produk.");
+                    dialog.dispose();
+                    loadData();
+                    // Open variant management
+                    manageProductVariants(productId);
+                }
             }
         });
         
@@ -274,107 +218,34 @@ public class ProductManagementPanel extends JPanel {
         btnPanel.add(btnCancel);
         panel.add(btnPanel, gbc);
         
-        dialog.add(new JScrollPane(panel));
+        dialog.add(panel);
         dialog.setVisible(true);
     }
     
-    private void selectPhotos() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setMultiSelectionEnabled(true);
-        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
-            public boolean accept(File f) {
-                if (f.isDirectory()) return true;
-                String name = f.getName().toLowerCase();
-                return name.endsWith(".jpg") || name.endsWith(".jpeg") || 
-                       name.endsWith(".png") || name.endsWith(".gif");
-            }
-            public String getDescription() {
-                return "Image Files (*.jpg, *.jpeg, *.png, *.gif)";
-            }
-        });
-        
-        int result = fileChooser.showOpenDialog(this);
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File[] files = fileChooser.getSelectedFiles();
-            selectedPhotos.clear();
-            selectedPhotos.addAll(Arrays.asList(files));
-        }
-    }
-    
-    private boolean saveProductWithPhotos(String name, int brandId, int typeId, 
-                                         int sizeId, int colorId, double costPrice, 
-                                         double sellingPrice, int stock, String status,
-                                         List<File> photos) {
-        Connection conn = null;
-        try {
-            conn = DatabaseConfig.getConnection();
-            conn.setAutoCommit(false);
-            
-            // 1. Insert product
-            String sql = "INSERT INTO products (brand_id, type_id, size_id, color_id, " +
-                        "name, cost_price, selling_price, stock, status) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private int saveProduct(String name, int brandId, int typeId, double costPrice, double sellingPrice) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "INSERT INTO products (brand_id, type_id, name, cost_price, selling_price) " +
+                        "VALUES (?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setInt(1, brandId);
             ps.setInt(2, typeId);
-            ps.setInt(3, sizeId);
-            ps.setInt(4, colorId);
-            ps.setString(5, name);
-            ps.setDouble(6, costPrice);
-            ps.setDouble(7, sellingPrice);
-            ps.setInt(8, stock);
-            ps.setString(9, status);
+            ps.setString(3, name);
+            ps.setDouble(4, costPrice);
+            ps.setDouble(5, sellingPrice);
             
             ps.executeUpdate();
             
-            // 2. Get generated product ID
             ResultSet rs = ps.getGeneratedKeys();
-            int productId = 0;
             if (rs.next()) {
-                productId = rs.getInt(1);
+                return rs.getInt(1);
             }
-            
-            // 3. Upload photos to Supabase and save URLs
-            if (!photos.isEmpty() && productId > 0) {
-                for (File photo : photos) {
-                    String photoUrl = SupabaseStorage.uploadProductPhoto(productId, photo);
-                    
-                    if (photoUrl != null) {
-                        String photoSql = "INSERT INTO product_photos (product_id, photo_url) VALUES (?, ?)";
-                        PreparedStatement photoPs = conn.prepareStatement(photoSql);
-                        photoPs.setInt(1, productId);
-                        photoPs.setString(2, photoUrl);
-                        photoPs.executeUpdate();
-                    }
-                }
-            }
-            
-            conn.commit();
-            return true;
-            
-        } catch (Exception e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
         }
+        return 0;
     }
     
-    private void showEditDialog() {
+    private void showEditProductDialog() {
         int viewRow = table.getSelectedRow();
         if (viewRow == -1) {
             JOptionPane.showMessageDialog(this, "Pilih produk yang akan diedit!");
@@ -384,8 +255,6 @@ public class ProductManagementPanel extends JPanel {
         int modelRow = table.convertRowIndexToModel(viewRow);
         int id = (int) tableModel.getValueAt(modelRow, 0);
         
-        selectedPhotos.clear();
-        
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT * FROM products WHERE id = ?";
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -393,19 +262,8 @@ public class ProductManagementPanel extends JPanel {
             ResultSet rs = ps.executeQuery();
             
             if (rs.next()) {
-                String name = rs.getString("name");
-                int brandId = rs.getInt("brand_id");
-                int typeId = rs.getInt("type_id");
-                int sizeId = rs.getInt("size_id");
-                int colorId = rs.getInt("color_id");
-                double costPrice = rs.getDouble("cost_price");
-                double sellingPrice = rs.getDouble("selling_price");
-                int stock = rs.getInt("stock");
-                String status = rs.getString("status");
-                rs.close();
-                
                 JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Produk", true);
-                dialog.setSize(600, 750);
+                dialog.setSize(600, 400);
                 dialog.setLocationRelativeTo(this);
                 
                 JPanel panel = new JPanel(new GridBagLayout());
@@ -414,100 +272,43 @@ public class ProductManagementPanel extends JPanel {
                 gbc.fill = GridBagConstraints.HORIZONTAL;
                 gbc.insets = new Insets(5, 5, 5, 5);
                 
-                JTextField txtName = new JTextField(name, 25);
-                JTextField txtCostPrice = new JTextField(String.valueOf(costPrice), 25);
-                JTextField txtSellingPrice = new JTextField(String.valueOf(sellingPrice), 25);
-                JTextField txtStock = new JTextField(String.valueOf(stock), 25);
+                JTextField txtName = new JTextField(rs.getString("name"), 25);
+                JTextField txtCostPrice = new JTextField(String.valueOf(rs.getDouble("cost_price")), 25);
+                JTextField txtSellingPrice = new JTextField(String.valueOf(rs.getDouble("selling_price")), 25);
                 
                 JComboBox<ComboItem> cmbBrand = loadComboData("brands");
                 JComboBox<ComboItem> cmbType = loadComboData("types");
-                JComboBox<ComboItem> cmbSize = loadComboData("sizes");
-                JComboBox<ComboItem> cmbColor = loadComboData("colors");
-                JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
                 
-                selectComboItem(cmbBrand, brandId);
-                selectComboItem(cmbType, typeId);
-                selectComboItem(cmbSize, sizeId);
-                selectComboItem(cmbColor, colorId);
-                cmbStatus.setSelectedItem(status);
+                selectComboItem(cmbBrand, rs.getInt("brand_id"));
+                selectComboItem(cmbType, rs.getInt("type_id"));
                 
-                // Photo management panel
-                JPanel photoPanel = new JPanel(new BorderLayout(5, 5));
-                JLabel lblPhotoCount = new JLabel("0 foto baru dipilih");
-                JButton btnSelectPhotos = new JButton("Tambah Foto");
-                btnSelectPhotos.addActionListener(e -> {
-                    selectPhotos();
-                    lblPhotoCount.setText(selectedPhotos.size() + " foto baru dipilih");
-                });
-                JButton btnManagePhotos = new JButton("Kelola Foto");
-                btnManagePhotos.addActionListener(e -> manageProductPhotos(id));
+                int row = 0;
+                addFormRow(panel, gbc, row++, "Nama Produk:", txtName);
+                addFormRow(panel, gbc, row++, "Merek:", cmbBrand);
+                addFormRow(panel, gbc, row++, "Tipe:", cmbType);
+                addFormRow(panel, gbc, row++, "Harga Beli:", txtCostPrice);
+                addFormRow(panel, gbc, row++, "Harga Jual:", txtSellingPrice);
                 
-                JPanel photoButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-                photoButtonPanel.add(btnSelectPhotos);
-                photoButtonPanel.add(btnManagePhotos);
-                photoPanel.add(photoButtonPanel, BorderLayout.WEST);
-                photoPanel.add(lblPhotoCount, BorderLayout.CENTER);
-                
-                int r = 0;
-                addFormRow(panel, gbc, r++, "Nama Produk:", txtName);
-                addFormRow(panel, gbc, r++, "Merek:", cmbBrand);
-                addFormRow(panel, gbc, r++, "Tipe:", cmbType);
-                addFormRow(panel, gbc, r++, "Size:", cmbSize);
-                addFormRow(panel, gbc, r++, "Warna:", cmbColor);
-                addFormRow(panel, gbc, r++, "Harga Beli:", txtCostPrice);
-                addFormRow(panel, gbc, r++, "Harga Jual:", txtSellingPrice);
-                addFormRow(panel, gbc, r++, "Stok:", txtStock);
-                addFormRow(panel, gbc, r++, "Status:", cmbStatus);
-                addFormRow(panel, gbc, r++, "Foto Produk:", photoPanel);
-                
-                gbc.gridx = 0; gbc.gridy = r;
+                gbc.gridx = 0; gbc.gridy = row;
                 gbc.gridwidth = 2;
                 JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
                 
                 JButton btnUpdate = new JButton("Update");
                 btnUpdate.setBackground(new Color(52, 152, 219));
                 btnUpdate.setForeground(Color.WHITE);
+                btnUpdate.setFocusPainted(false);
                 btnUpdate.addActionListener(e -> {
-                    if (validateProductInput(txtName, txtCostPrice, txtSellingPrice, txtStock)) {
-                        JDialog progressDialog = new JDialog(dialog, "Menyimpan...", true);
-                        JProgressBar progressBar = new JProgressBar();
-                        progressBar.setIndeterminate(true);
-                        progressDialog.add(progressBar);
-                        progressDialog.setSize(300, 100);
-                        progressDialog.setLocationRelativeTo(dialog);
-                        
-                        SwingWorker<Boolean, Void> worker = new SwingWorker<Boolean, Void>() {
-                            @Override
-                            protected Boolean doInBackground() {
-                                return updateProductWithPhotos(id, txtName.getText(),
-                                    ((ComboItem)cmbBrand.getSelectedItem()).getId(),
-                                    ((ComboItem)cmbType.getSelectedItem()).getId(),
-                                    ((ComboItem)cmbSize.getSelectedItem()).getId(),
-                                    ((ComboItem)cmbColor.getSelectedItem()).getId(),
-                                    Double.parseDouble(txtCostPrice.getText()),
-                                    Double.parseDouble(txtSellingPrice.getText()),
-                                    Integer.parseInt(txtStock.getText()),
-                                    (String)cmbStatus.getSelectedItem(),
-                                    selectedPhotos);
-                            }
+                    if (validateProductInput(txtName, txtCostPrice, txtSellingPrice)) {
+                        if (updateProduct(id, txtName.getText(),
+                            ((ComboItem)cmbBrand.getSelectedItem()).getId(),
+                            ((ComboItem)cmbType.getSelectedItem()).getId(),
+                            Double.parseDouble(txtCostPrice.getText()),
+                            Double.parseDouble(txtSellingPrice.getText()))) {
                             
-                            @Override
-                            protected void done() {
-                                progressDialog.dispose();
-                                try {
-                                    if (get()) {
-                                        JOptionPane.showMessageDialog(dialog, "Produk berhasil diupdate!");
-                                        dialog.dispose();
-                                        loadData();
-                                    }
-                                } catch (Exception ex) {
-                                    JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage());
-                                }
-                            }
-                        };
-                        
-                        worker.execute();
-                        progressDialog.setVisible(true);
+                            JOptionPane.showMessageDialog(dialog, "Produk berhasil diupdate!");
+                            dialog.dispose();
+                            loadData();
+                        }
                     }
                 });
                 
@@ -518,7 +319,7 @@ public class ProductManagementPanel extends JPanel {
                 btnPanel.add(btnCancel);
                 panel.add(btnPanel, gbc);
                 
-                dialog.add(new JScrollPane(panel));
+                dialog.add(panel);
                 dialog.setVisible(true);
             }
         } catch (SQLException e) {
@@ -526,88 +327,509 @@ public class ProductManagementPanel extends JPanel {
         }
     }
     
-    private boolean updateProductWithPhotos(int id, String name, int brandId, int typeId, 
-                                           int sizeId, int colorId, double costPrice, 
-                                           double sellingPrice, int stock, String status,
-                                           List<File> newPhotos) {
-        Connection conn = null;
-        try {
-            conn = DatabaseConfig.getConnection();
-            conn.setAutoCommit(false);
-            
-            // 1. Update product
-            String sql = "UPDATE products SET brand_id = ?, type_id = ?, size_id = ?, " +
-                        "color_id = ?, name = ?, cost_price = ?, selling_price = ?, " +
-                        "stock = ?, status = ? WHERE id = ?";
+    private boolean updateProduct(int id, String name, int brandId, int typeId, 
+                                 double costPrice, double sellingPrice) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "UPDATE products SET brand_id = ?, type_id = ?, name = ?, " +
+                        "cost_price = ?, selling_price = ? WHERE id = ?";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setInt(1, brandId);
             ps.setInt(2, typeId);
-            ps.setInt(3, sizeId);
-            ps.setInt(4, colorId);
-            ps.setString(5, name);
-            ps.setDouble(6, costPrice);
-            ps.setDouble(7, sellingPrice);
-            ps.setInt(8, stock);
-            ps.setString(9, status);
-            ps.setInt(10, id);
+            ps.setString(3, name);
+            ps.setDouble(4, costPrice);
+            ps.setDouble(5, sellingPrice);
+            ps.setInt(6, id);
+            
             ps.executeUpdate();
-            
-            // 2. Upload new photos if any
-            if (!newPhotos.isEmpty()) {
-                for (File photo : newPhotos) {
-                    String photoUrl = SupabaseStorage.uploadProductPhoto(id, photo);
-                    
-                    if (photoUrl != null) {
-                        String photoSql = "INSERT INTO product_photos (product_id, photo_url) VALUES (?, ?)";
-                        PreparedStatement photoPs = conn.prepareStatement(photoSql);
-                        photoPs.setInt(1, id);
-                        photoPs.setString(2, photoUrl);
-                        photoPs.executeUpdate();
-                    }
-                }
-            }
-            
-            conn.commit();
             return true;
-            
-        } catch (Exception e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            e.printStackTrace();
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             return false;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
+        }
+    }
+    
+    private void manageProductVariants() {
+        int viewRow = table.getSelectedRow();
+        if (viewRow == -1) {
+            JOptionPane.showMessageDialog(this, "Pilih produk terlebih dahulu!");
+            return;
+        }
+        
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        int productId = (int) tableModel.getValueAt(modelRow, 0);
+        
+        manageProductVariants(productId);
+    }
+    
+    private void manageProductVariants(int productId) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Kelola Varian Produk", true);
+        dialog.setSize(1000, 600);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        
+        // Product info
+        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        infoPanel.setBackground(new Color(236, 240, 241));
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "SELECT p.name, b.name as brand, t.name as type " +
+                        "FROM products p " +
+                        "JOIN brands b ON p.brand_id = b.id " +
+                        "JOIN types t ON p.type_id = t.id " +
+                        "WHERE p.id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, productId);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                JLabel lblInfo = new JLabel(String.format("Produk: %s | Merek: %s | Tipe: %s", 
+                    rs.getString("name"), rs.getString("brand"), rs.getString("type")));
+                lblInfo.setFont(new Font("Arial", Font.BOLD, 14));
+                infoPanel.add(lblInfo);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+        // Variants table
+        String[] columns = {"ID", "Warna", "Size", "Stok", "Status", "Foto"};
+        DefaultTableModel variantModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        JTable variantTable = new JTable(variantModel);
+        variantTable.setRowHeight(30);
+        JScrollPane scrollPane = new JScrollPane(variantTable);
+        
+        // Load variants
+        loadVariants(variantModel, productId);
+        
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        
+        JButton btnAddVariant = new JButton("Tambah Varian");
+        btnAddVariant.setBackground(new Color(46, 204, 113));
+        btnAddVariant.setForeground(Color.WHITE);
+        btnAddVariant.setFocusPainted(false);
+        btnAddVariant.addActionListener(e -> {
+            showAddVariantDialog(productId, variantModel);
+        });
+        
+        JButton btnEditVariant = new JButton("Edit Varian");
+        btnEditVariant.setBackground(new Color(52, 152, 219));
+        btnEditVariant.setForeground(Color.WHITE);
+        btnEditVariant.setFocusPainted(false);
+        btnEditVariant.addActionListener(e -> {
+            int row = variantTable.getSelectedRow();
+            if (row >= 0) {
+                int variantId = (int) variantModel.getValueAt(row, 0);
+                showEditVariantDialog(variantId, productId, variantModel);
+            } else {
+                JOptionPane.showMessageDialog(dialog, "Pilih varian yang akan diedit!");
+            }
+        });
+        
+        JButton btnDeleteVariant = new JButton("Hapus Varian");
+        btnDeleteVariant.setBackground(new Color(231, 76, 60));
+        btnDeleteVariant.setForeground(Color.WHITE);
+        btnDeleteVariant.setFocusPainted(false);
+        btnDeleteVariant.addActionListener(e -> {
+            int row = variantTable.getSelectedRow();
+            if (row >= 0) {
+                int variantId = (int) variantModel.getValueAt(row, 0);
+                deleteVariant(variantId);
+                loadVariants(variantModel, productId);
+                loadData(); // Refresh main table
+            } else {
+                JOptionPane.showMessageDialog(dialog, "Pilih varian yang akan dihapus!");
+            }
+        });
+        
+        JButton btnManagePhotos = new JButton("Kelola Foto");
+        btnManagePhotos.setBackground(new Color(155, 89, 182));
+        btnManagePhotos.setForeground(Color.WHITE);
+        btnManagePhotos.setFocusPainted(false);
+        btnManagePhotos.addActionListener(e -> {
+            int row = variantTable.getSelectedRow();
+            if (row >= 0) {
+                int variantId = (int) variantModel.getValueAt(row, 0);
+                manageVariantPhotos(variantId);
+            } else {
+                JOptionPane.showMessageDialog(dialog, "Pilih varian terlebih dahulu!");
+            }
+        });
+        
+        JButton btnClose = new JButton("Tutup");
+        btnClose.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(btnAddVariant);
+        buttonPanel.add(btnEditVariant);
+        buttonPanel.add(btnDeleteVariant);
+        buttonPanel.add(btnManagePhotos);
+        buttonPanel.add(btnClose);
+        
+        mainPanel.add(infoPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(mainPanel);
+        dialog.setVisible(true);
+    }
+    
+    private void loadVariants(DefaultTableModel model, int productId) {
+        model.setRowCount(0);
+        
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "SELECT pd.id, c.name as color, s.name as size, pd.stock, pd.status, " +
+                        "COUNT(pp.id) as photo_count " +
+                        "FROM product_details pd " +
+                        "JOIN colors c ON pd.color_id = c.id " +
+                        "JOIN sizes s ON pd.size_id = s.id " +
+                        "LEFT JOIN product_photos pp ON pd.id = pp.product_detail_id " +
+                        "WHERE pd.product_id = ? " +
+                        "GROUP BY pd.id, c.name, s.name, pd.stock, pd.status " +
+                        "ORDER BY c.name, s.name";
+            
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, productId);
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                Object[] row = {
+                    rs.getInt("id"),
+                    rs.getString("color"),
+                    rs.getString("size"),
+                    rs.getInt("stock"),
+                    rs.getString("status"),
+                    rs.getInt("photo_count") + " foto"
+                };
+                model.addRow(row);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void showAddVariantDialog(int productId, DefaultTableModel variantModel) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Tambah Varian Produk", true);
+        dialog.setSize(500, 400);
+        dialog.setLocationRelativeTo(this);
+        
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        JComboBox<ComboItem> cmbColor = loadComboData("colors");
+        JComboBox<ComboItem> cmbSize = loadComboData("sizes");
+        JTextField txtStock = new JTextField("0", 20);
+        JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
+        
+        int row = 0;
+        addFormRow(panel, gbc, row++, "Warna:", cmbColor);
+        addFormRow(panel, gbc, row++, "Size:", cmbSize);
+        addFormRow(panel, gbc, row++, "Stok:", txtStock);
+        addFormRow(panel, gbc, row++, "Status:", cmbStatus);
+        
+        gbc.gridx = 0; gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel lblInfo = new JLabel("<html><i>* Foto dapat ditambahkan setelah varian dibuat</i></html>");
+        lblInfo.setForeground(Color.GRAY);
+        panel.add(lblInfo, gbc);
+        
+        gbc.gridy = row;
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        
+        JButton btnSave = new JButton("Simpan");
+        btnSave.setBackground(new Color(46, 204, 113));
+        btnSave.setForeground(Color.WHITE);
+        btnSave.setFocusPainted(false);
+        btnSave.addActionListener(e -> {
+            try {
+                int stock = Integer.parseInt(txtStock.getText());
+                if (stock < 0) {
+                    JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
+                    return;
                 }
+                
+                if (saveVariant(productId,
+                    ((ComboItem)cmbColor.getSelectedItem()).getId(),
+                    ((ComboItem)cmbSize.getSelectedItem()).getId(),
+                    stock,
+                    (String)cmbStatus.getSelectedItem())) {
+                    
+                    JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan!");
+                    loadVariants(variantModel, productId);
+                    loadData();
+                    dialog.dispose();
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
+            }
+        });
+        
+        JButton btnCancel = new JButton("Batal");
+        btnCancel.addActionListener(e -> dialog.dispose());
+        
+        btnPanel.add(btnSave);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
+        
+        dialog.add(panel);
+        dialog.setVisible(true);
+    }
+    
+    private boolean saveVariant(int productId, int colorId, int sizeId, int stock, String status) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            // Check if variant already exists
+            String checkSql = "SELECT id FROM product_details WHERE product_id = ? AND color_id = ? AND size_id = ?";
+            PreparedStatement checkPs = conn.prepareStatement(checkSql);
+            checkPs.setInt(1, productId);
+            checkPs.setInt(2, colorId);
+            checkPs.setInt(3, sizeId);
+            ResultSet checkRs = checkPs.executeQuery();
+            
+            if (checkRs.next()) {
+                JOptionPane.showMessageDialog(this, "Varian dengan warna dan size ini sudah ada!");
+                return false;
+            }
+            
+            String sql = "INSERT INTO product_details (product_id, color_id, size_id, stock, status) " +
+                        "VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, productId);
+            ps.setInt(2, colorId);
+            ps.setInt(3, sizeId);
+            ps.setInt(4, stock);
+            ps.setString(5, status);
+            
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    private void showEditVariantDialog(int variantId, int productId, DefaultTableModel variantModel) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "SELECT * FROM product_details WHERE id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, variantId);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+                    "Edit Varian", true);
+                dialog.setSize(500, 350);
+                dialog.setLocationRelativeTo(this);
+                
+                JPanel panel = new JPanel(new GridBagLayout());
+                panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+                GridBagConstraints gbc = new GridBagConstraints();
+                gbc.fill = GridBagConstraints.HORIZONTAL;
+                gbc.insets = new Insets(5, 5, 5, 5);
+                
+                JComboBox<ComboItem> cmbColor = loadComboData("colors");
+                JComboBox<ComboItem> cmbSize = loadComboData("sizes");
+                JTextField txtStock = new JTextField(String.valueOf(rs.getInt("stock")), 20);
+                JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
+                
+                selectComboItem(cmbColor, rs.getInt("color_id"));
+                selectComboItem(cmbSize, rs.getInt("size_id"));
+                cmbStatus.setSelectedItem(rs.getString("status"));
+                
+                int row = 0;
+                addFormRow(panel, gbc, row++, "Warna:", cmbColor);
+                addFormRow(panel, gbc, row++, "Size:", cmbSize);
+                addFormRow(panel, gbc, row++, "Stok:", txtStock);
+                addFormRow(panel, gbc, row++, "Status:", cmbStatus);
+                
+                gbc.gridx = 0; gbc.gridy = row;
+                gbc.gridwidth = 2;
+                JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+                
+                JButton btnUpdate = new JButton("Update");
+                btnUpdate.setBackground(new Color(52, 152, 219));
+                btnUpdate.setForeground(Color.WHITE);
+                btnUpdate.setFocusPainted(false);
+                btnUpdate.addActionListener(e -> {
+                    try {
+                        int stock = Integer.parseInt(txtStock.getText());
+                        if (stock < 0) {
+                            JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
+                            return;
+                        }
+                        
+                        if (updateVariant(variantId,
+                            ((ComboItem)cmbColor.getSelectedItem()).getId(),
+                            ((ComboItem)cmbSize.getSelectedItem()).getId(),
+                            stock,
+                            (String)cmbStatus.getSelectedItem())) {
+                            
+                            JOptionPane.showMessageDialog(dialog, "Varian berhasil diupdate!");
+                            loadVariants(variantModel, productId);
+                            loadData();
+                            dialog.dispose();
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
+                    }
+                });
+                
+                JButton btnCancel = new JButton("Batal");
+                btnCancel.addActionListener(e -> dialog.dispose());
+                
+                btnPanel.add(btnUpdate);
+                btnPanel.add(btnCancel);
+                panel.add(btnPanel, gbc);
+                
+                dialog.add(panel);
+                dialog.setVisible(true);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private boolean updateVariant(int variantId, int colorId, int sizeId, int stock, String status) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "UPDATE product_details SET color_id = ?, size_id = ?, stock = ?, status = ? WHERE id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, colorId);
+            ps.setInt(2, sizeId);
+            ps.setInt(3, stock);
+            ps.setString(4, status);
+            ps.setInt(5, variantId);
+            
+            ps.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    private void deleteVariant(int variantId) {
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Hapus varian ini?\nSemua foto varian juga akan dihapus.", 
+            "Konfirmasi", JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            try (Connection conn = DatabaseConfig.getConnection()) {
+                conn.setAutoCommit(false);
+                
+                // Delete photos from Supabase and database
+                String photoSql = "SELECT photo_url FROM product_photos WHERE product_detail_id = ?";
+                PreparedStatement photoPs = conn.prepareStatement(photoSql);
+                photoPs.setInt(1, variantId);
+                ResultSet rs = photoPs.executeQuery();
+                
+                while (rs.next()) {
+                    String photoUrl = rs.getString("photo_url");
+                    SupabaseStorage.deleteProductPhoto(photoUrl);
+                }
+                
+                String deletePhotosSql = "DELETE FROM product_photos WHERE product_detail_id = ?";
+                PreparedStatement delPhotosPs = conn.prepareStatement(deletePhotosSql);
+                delPhotosPs.setInt(1, variantId);
+                delPhotosPs.executeUpdate();
+                
+                // Delete variant
+                String sql = "DELETE FROM product_details WHERE id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, variantId);
+                ps.executeUpdate();
+                
+                conn.commit();
+                
+                JOptionPane.showMessageDialog(this, "Varian berhasil dihapus!");
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             }
         }
     }
     
-    private void manageProductPhotos(int productId) {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Kelola Foto Produk", true);
-        dialog.setSize(800, 600);
+    private void manageVariantPhotos(int variantId) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+            "Kelola Foto Varian", true);
+        dialog.setSize(900, 600);
         dialog.setLocationRelativeTo(this);
         
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
+        // Variant info
+        JPanel infoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        infoPanel.setBackground(new Color(236, 240, 241));
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            String sql = "SELECT p.name, c.name as color, s.name as size " +
+                        "FROM product_details pd " +
+                        "JOIN products p ON pd.product_id = p.id " +
+                        "JOIN colors c ON pd.color_id = c.id " +
+                        "JOIN sizes s ON pd.size_id = s.id " +
+                        "WHERE pd.id = ?";
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setInt(1, variantId);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                JLabel lblInfo = new JLabel(String.format("Produk: %s | Warna: %s | Size: %s", 
+                    rs.getString("name"), rs.getString("color"), rs.getString("size")));
+                lblInfo.setFont(new Font("Arial", Font.BOLD, 13));
+                infoPanel.add(lblInfo);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
         JPanel photoGridPanel = new JPanel(new GridLayout(0, 3, 10, 10));
         JScrollPane scrollPane = new JScrollPane(photoGridPanel);
         
         // Load photos
+        loadVariantPhotos(photoGridPanel, variantId, dialog);
+        
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        
+        JButton btnAddPhoto = new JButton("Tambah Foto");
+        btnAddPhoto.setBackground(new Color(46, 204, 113));
+        btnAddPhoto.setForeground(Color.WHITE);
+        btnAddPhoto.setFocusPainted(false);
+        btnAddPhoto.addActionListener(e -> {
+            addVariantPhotos(variantId);
+            dialog.dispose();
+            manageVariantPhotos(variantId);
+        });
+        
+        JButton btnClose = new JButton("Tutup");
+        btnClose.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(btnAddPhoto);
+        buttonPanel.add(btnClose);
+        
+        mainPanel.add(infoPanel, BorderLayout.NORTH);
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(mainPanel);
+        dialog.setVisible(true);
+    }
+    
+    private void loadVariantPhotos(JPanel panel, int variantId, JDialog parentDialog) {
+        panel.removeAll();
+        
         try (Connection conn = DatabaseConfig.getConnection()) {
-            String sql = "SELECT id, photo_url FROM product_photos WHERE product_id = ? ORDER BY created_at";
+            String sql = "SELECT id, photo_url FROM product_photos WHERE product_detail_id = ? ORDER BY created_at";
             PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, productId);
+            ps.setInt(1, variantId);
             ResultSet rs = ps.executeQuery();
             
             while (rs.next()) {
@@ -618,7 +840,7 @@ public class ProductManagementPanel extends JPanel {
                 photoPanel.setBorder(BorderFactory.createLineBorder(Color.GRAY));
                 
                 JLabel lblPhoto = new JLabel("Loading...", SwingConstants.CENTER);
-                lblPhoto.setPreferredSize(new Dimension(200, 200));
+                lblPhoto.setPreferredSize(new Dimension(250, 250));
                 
                 // Load image asynchronously
                 SwingWorker<ImageIcon, Void> imageLoader = new SwingWorker<ImageIcon, Void>() {
@@ -627,7 +849,7 @@ public class ProductManagementPanel extends JPanel {
                         try {
                             BufferedImage img = ImageIO.read(new java.net.URL(photoUrl));
                             if (img != null) {
-                                Image scaledImg = img.getScaledInstance(200, 200, Image.SCALE_SMOOTH);
+                                Image scaledImg = img.getScaledInstance(250, 250, Image.SCALE_SMOOTH);
                                 return new ImageIcon(scaledImg);
                             }
                         } catch (Exception e) {
@@ -656,39 +878,109 @@ public class ProductManagementPanel extends JPanel {
                 JButton btnDelete = new JButton("Hapus");
                 btnDelete.setBackground(new Color(231, 76, 60));
                 btnDelete.setForeground(Color.WHITE);
+                btnDelete.setFocusPainted(false);
                 btnDelete.addActionListener(e -> {
-                    int confirm = JOptionPane.showConfirmDialog(dialog,
+                    int confirm = JOptionPane.showConfirmDialog(parentDialog,
                         "Hapus foto ini?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
                     if (confirm == JOptionPane.YES_OPTION) {
-                        deleteProductPhoto(photoId, photoUrl);
-                        dialog.dispose();
-                        manageProductPhotos(productId);
+                        deleteVariantPhoto(photoId, photoUrl);
+                        parentDialog.dispose();
+                        manageVariantPhotos(variantId);
                     }
                 });
                 
                 photoPanel.add(lblPhoto, BorderLayout.CENTER);
                 photoPanel.add(btnDelete, BorderLayout.SOUTH);
                 
-                photoGridPanel.add(photoPanel);
+                panel.add(photoPanel);
             }
-            
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(dialog, "Error: " + e.getMessage());
+            e.printStackTrace();
         }
         
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
-        
-        JButton btnClose = new JButton("Tutup");
-        btnClose.addActionListener(e -> dialog.dispose());
-        JPanel bottomPanel = new JPanel();
-        bottomPanel.add(btnClose);
-        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
-        
-        dialog.add(mainPanel);
-        dialog.setVisible(true);
+        panel.revalidate();
+        panel.repaint();
     }
     
-    private void deleteProductPhoto(int photoId, String photoUrl) {
+    private void addVariantPhotos(int variantId) {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setMultiSelectionEnabled(true);
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
+            public boolean accept(File f) {
+                if (f.isDirectory()) return true;
+                String name = f.getName().toLowerCase();
+                return name.endsWith(".jpg") || name.endsWith(".jpeg") || 
+                       name.endsWith(".png") || name.endsWith(".gif");
+            }
+            public String getDescription() {
+                return "Image Files (*.jpg, *.jpeg, *.png, *.gif)";
+            }
+        });
+        
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File[] files = fileChooser.getSelectedFiles();
+            
+            // Show progress
+            JDialog progressDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), 
+                "Mengupload Foto...", true);
+            JProgressBar progressBar = new JProgressBar(0, files.length);
+            progressBar.setStringPainted(true);
+            progressDialog.add(progressBar);
+            progressDialog.setSize(400, 100);
+            progressDialog.setLocationRelativeTo(this);
+            
+            SwingWorker<Void, Integer> worker = new SwingWorker<Void, Integer>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    Connection conn = DatabaseConfig.getConnection();
+                    int uploaded = 0;
+                    
+                    for (File file : files) {
+                        String photoUrl = SupabaseStorage.uploadProductPhoto(variantId, file);
+                        
+                        if (photoUrl != null) {
+                            String sql = "INSERT INTO product_photos (product_detail_id, photo_url) VALUES (?, ?)";
+                            PreparedStatement ps = conn.prepareStatement(sql);
+                            ps.setInt(1, variantId);
+                            ps.setString(2, photoUrl);
+                            ps.executeUpdate();
+                            uploaded++;
+                        }
+                        
+                        publish(uploaded);
+                    }
+                    
+                    conn.close();
+                    return null;
+                }
+                
+                @Override
+                protected void process(List<Integer> chunks) {
+                    int latest = chunks.get(chunks.size() - 1);
+                    progressBar.setValue(latest);
+                }
+                
+                @Override
+                protected void done() {
+                    progressDialog.dispose();
+                    try {
+                        get();
+                        JOptionPane.showMessageDialog(ProductManagementPanel.this, 
+                            files.length + " foto berhasil diupload!");
+                    } catch (Exception e) {
+                        JOptionPane.showMessageDialog(ProductManagementPanel.this, 
+                            "Error: " + e.getMessage());
+                    }
+                }
+            };
+            
+            worker.execute();
+            progressDialog.setVisible(true);
+        }
+    }
+    
+    private void deleteVariantPhoto(int photoId, String photoUrl) {
         try (Connection conn = DatabaseConfig.getConnection()) {
             // Delete from Supabase
             SupabaseStorage.deleteProductPhoto(photoUrl);
@@ -705,18 +997,66 @@ public class ProductManagementPanel extends JPanel {
         }
     }
     
-    private void viewProductPhotos() {
+    private void deleteProduct() {
         int viewRow = table.getSelectedRow();
         if (viewRow == -1) {
-            JOptionPane.showMessageDialog(this, "Pilih produk terlebih dahulu!");
+            JOptionPane.showMessageDialog(this, "Pilih produk yang akan dihapus!");
             return;
         }
         
         int modelRow = table.convertRowIndexToModel(viewRow);
-        int productId = (int) tableModel.getValueAt(modelRow, 0);
-        String productName = (String) tableModel.getValueAt(modelRow, 1);
+        int id = (int) tableModel.getValueAt(modelRow, 0);
+        String name = (String) tableModel.getValueAt(modelRow, 1);
         
-        manageProductPhotos(productId);
+        int confirm = JOptionPane.showConfirmDialog(this,
+            "Hapus produk: " + name + "?\nSemua varian dan foto produk juga akan dihapus.", 
+            "Konfirmasi", JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            try (Connection conn = DatabaseConfig.getConnection()) {
+                conn.setAutoCommit(false);
+                
+                // Delete all photos from all variants
+                String photoSql = "SELECT pp.photo_url FROM product_photos pp " +
+                                 "JOIN product_details pd ON pp.product_detail_id = pd.id " +
+                                 "WHERE pd.product_id = ?";
+                PreparedStatement photoPs = conn.prepareStatement(photoSql);
+                photoPs.setInt(1, id);
+                ResultSet rs = photoPs.executeQuery();
+                
+                while (rs.next()) {
+                    String photoUrl = rs.getString("photo_url");
+                    SupabaseStorage.deleteProductPhoto(photoUrl);
+                }
+                
+                // Delete photos from database (cascade will handle this, but explicit is better)
+                String deletePhotosSql = "DELETE pp FROM product_photos pp " +
+                                        "JOIN product_details pd ON pp.product_detail_id = pd.id " +
+                                        "WHERE pd.product_id = ?";
+                PreparedStatement delPhotosPs = conn.prepareStatement(deletePhotosSql);
+                delPhotosPs.setInt(1, id);
+                delPhotosPs.executeUpdate();
+                
+                // Delete variants
+                String deleteVariantsSql = "DELETE FROM product_details WHERE product_id = ?";
+                PreparedStatement delVariantsPs = conn.prepareStatement(deleteVariantsSql);
+                delVariantsPs.setInt(1, id);
+                delVariantsPs.executeUpdate();
+                
+                // Delete product
+                String sql = "DELETE FROM products WHERE id = ?";
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ps.setInt(1, id);
+                ps.executeUpdate();
+                
+                conn.commit();
+                
+                JOptionPane.showMessageDialog(this, "Produk berhasil dihapus!");
+                loadData();
+            } catch (SQLException e) {
+                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+            }
+        }
     }
     
     private void addFormRow(JPanel panel, GridBagConstraints gbc, int row, String label, JComponent component) {
@@ -752,8 +1092,7 @@ public class ProductManagementPanel extends JPanel {
         }
     }
     
-    private boolean validateProductInput(JTextField name, JTextField costPrice, 
-                                        JTextField sellingPrice, JTextField stock) {
+    private boolean validateProductInput(JTextField name, JTextField costPrice, JTextField sellingPrice) {
         if (!InputValidator.isNotEmpty(name.getText())) {
             JOptionPane.showMessageDialog(this, "Nama produk harus diisi!");
             return false;
@@ -766,103 +1105,7 @@ public class ProductManagementPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Harga jual tidak valid!");
             return false;
         }
-        if (!InputValidator.isValidStock(stock.getText())) {
-            JOptionPane.showMessageDialog(this, "Stok tidak valid!");
-            return false;
-        }
         return true;
-    }
-    
-    private void deleteProduct() {
-        int viewRow = table.getSelectedRow();
-        if (viewRow == -1) {
-            JOptionPane.showMessageDialog(this, "Pilih produk yang akan dihapus!");
-            return;
-        }
-        
-        int modelRow = table.convertRowIndexToModel(viewRow);
-        int id = (int) tableModel.getValueAt(modelRow, 0);
-        String name = (String) tableModel.getValueAt(modelRow, 1);
-        
-        int confirm = JOptionPane.showConfirmDialog(this,
-            "Hapus produk: " + name + "?\nSemua foto produk juga akan dihapus.", 
-            "Konfirmasi", JOptionPane.YES_NO_OPTION);
-        
-        if (confirm == JOptionPane.YES_OPTION) {
-            try (Connection conn = DatabaseConfig.getConnection()) {
-                conn.setAutoCommit(false);
-                
-                // Delete photos from Supabase and database
-                String photoSql = "SELECT photo_url FROM product_photos WHERE product_id = ?";
-                PreparedStatement photoPs = conn.prepareStatement(photoSql);
-                photoPs.setInt(1, id);
-                ResultSet rs = photoPs.executeQuery();
-                
-                while (rs.next()) {
-                    String photoUrl = rs.getString("photo_url");
-                    SupabaseStorage.deleteProductPhoto(photoUrl);
-                }
-                
-                String deletePhotosSql = "DELETE FROM product_photos WHERE product_id = ?";
-                PreparedStatement delPhotosPs = conn.prepareStatement(deletePhotosSql);
-                delPhotosPs.setInt(1, id);
-                delPhotosPs.executeUpdate();
-                
-                // Delete product
-                String sql = "DELETE FROM products WHERE id = ?";
-                PreparedStatement ps = conn.prepareStatement(sql);
-                ps.setInt(1, id);
-                ps.executeUpdate();
-                
-                conn.commit();
-                
-                JOptionPane.showMessageDialog(this, "Produk berhasil dihapus!");
-                loadData();
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
-            }
-        }
-    }
-    
-    private void updateStock() {
-        int viewRow = table.getSelectedRow();
-        if (viewRow == -1) {
-            JOptionPane.showMessageDialog(this, "Pilih produk terlebih dahulu!");
-            return;
-        }
-        
-        int modelRow = table.convertRowIndexToModel(viewRow);
-        int id = (int) tableModel.getValueAt(modelRow, 0);
-        String name = (String) tableModel.getValueAt(modelRow, 1);
-        int currentStock = (int) tableModel.getValueAt(modelRow, 8);
-        
-        String input = JOptionPane.showInputDialog(this, 
-            "Stok saat ini: " + currentStock + "\nStok baru:", currentStock);
-        
-        if (input != null) {
-            try {
-                int newStock = Integer.parseInt(input);
-                if (newStock < 0) {
-                    JOptionPane.showMessageDialog(this, "Stok tidak boleh negatif!");
-                    return;
-                }
-                
-                try (Connection conn = DatabaseConfig.getConnection()) {
-                    String sql = "UPDATE products SET stock = ? WHERE id = ?";
-                    PreparedStatement ps = conn.prepareStatement(sql);
-                    ps.setInt(1, newStock);
-                    ps.setInt(2, id);
-                    ps.executeUpdate();
-                    
-                    JOptionPane.showMessageDialog(this, "Stok berhasil diupdate!");
-                    loadData();
-                } catch (SQLException e) {
-                    JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
-                }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(this, "Input tidak valid!");
-            }
-        }
     }
     
     private static class ComboItem {
