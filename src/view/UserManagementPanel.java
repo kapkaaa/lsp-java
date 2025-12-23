@@ -6,6 +6,8 @@ import java.awt.*;
 import java.sql.*;
 import config.DatabaseConfig;
 import utils.*;
+import java.awt.event.*;
+import java.awt.geom.*;
 
 public class UserManagementPanel extends JPanel {
     private DefaultTableModel tableModel;
@@ -23,21 +25,17 @@ public class UserManagementPanel extends JPanel {
         setBackground(Color.WHITE);
         
         // Header
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(Color.WHITE);
-        
         JLabel lblTitle = new JLabel("Kelola Karyawan");
-        lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-        headerPanel.add(lblTitle, BorderLayout.WEST);
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblTitle.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0));
+        add(lblTitle, BorderLayout.NORTH);
         
-        add(headerPanel, BorderLayout.NORTH);
-        
-        // Search & Filter Panel
+        // Filter Panel — SATU BARIS
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         filterPanel.setBackground(Color.WHITE);
         
         filterPanel.add(new JLabel("Cari:"));
-        txtSearch = new JTextField(20);
+        txtSearch = createStyledTextField(20);
         txtSearch.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyReleased(java.awt.event.KeyEvent e) {
                 searchData();
@@ -47,6 +45,9 @@ public class UserManagementPanel extends JPanel {
         
         filterPanel.add(new JLabel("Role:"));
         cmbRoleFilter = new JComboBox<>(new String[]{"Semua", "admin", "cashier"});
+        cmbRoleFilter.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbRoleFilter.setBackground(Color.WHITE);
+        cmbRoleFilter.setForeground(Color.decode("#222222"));
         cmbRoleFilter.addActionListener(e -> loadData());
         filterPanel.add(cmbRoleFilter);
         
@@ -60,20 +61,31 @@ public class UserManagementPanel extends JPanel {
         };
         
         table = new JTable(tableModel);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.setRowHeight(25);
+        table.setRowHeight(28);
+        table.setSelectionBackground(new Color(236, 240, 241));
+        table.setSelectionForeground(Color.BLACK);
         table.getColumnModel().getColumn(0).setPreferredWidth(40);
         
+        // Style table header
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(new Color(236, 240, 241));
+        header.setForeground(Color.BLACK);
+        header.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+        
         JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
         
         // Button Panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         buttonPanel.setBackground(Color.WHITE);
         
-        JButton btnAdd = createButton("Tambah", new Color(46, 204, 113), e -> showAddDialog());
-        JButton btnEdit = createButton("Edit", new Color(52, 152, 219), e -> showEditDialog());
-        JButton btnDelete = createButton("Hapus", new Color(231, 76, 60), e -> deleteUser());
-        JButton btnChangePassword = createButton("Ubah Password", new Color(241, 196, 15), e -> changePassword());
+        JButton btnAdd = createStyledButton("Tambah", new Color(46, 204, 113), e -> showAddDialog());
+        JButton btnEdit = createStyledButton("Edit", new Color(52, 152, 219), e -> showEditDialog());
+        JButton btnDelete = createStyledButton("Hapus", new Color(231, 76, 60), e -> deleteUser());
+        JButton btnChangePassword = createStyledButton("Ubah Password", new Color(241, 196, 15), e -> changePassword());
         
         buttonPanel.add(btnAdd);
         buttonPanel.add(btnEdit);
@@ -89,13 +101,44 @@ public class UserManagementPanel extends JPanel {
         add(centerPanel, BorderLayout.CENTER);
     }
     
-    private JButton createButton(String text, Color color, java.awt.event.ActionListener listener) {
-        JButton btn = new JButton(text);
-        btn.setBackground(color);
+    // Helper: input field stylish
+    private JTextField createStyledTextField(int columns) {
+        JTextField field = new JTextField(columns);
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        ));
+        field.setBackground(Color.WHITE);
+        field.setForeground(Color.decode("#222222"));
+        return field;
+    }
+    
+    // Helper: tombol berwarna
+    private JButton createStyledButton(String text, Color bgColor, java.awt.event.ActionListener listener) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(bgColor.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(bgColor.brighter());
+                } else {
+                    g2.setColor(bgColor);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
         btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btn.setFocusPainted(false);
+        btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
-        btn.setPreferredSize(new Dimension(120, 35));
+        btn.setPreferredSize(new Dimension(120, 32));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addActionListener(listener);
         return btn;
@@ -154,81 +197,138 @@ public class UserManagementPanel extends JPanel {
     
     private void showAddDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Karyawan", true);
-        dialog.setSize(300, 450);
+        dialog.setUndecorated(true);
+        dialog.setSize(400, 520);
         dialog.setLocationRelativeTo(this);
-        
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        dialog.setLayout(new BorderLayout());
+
+        // Custom title bar
+        JPanel titleBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        titleBar.setPreferredSize(new Dimension(400, 40));
+        titleBar.setOpaque(false);
+
+        JButton btnClose = createMacOSButton(new Color(0xFF5F57));
+        btnClose.addActionListener(e -> dialog.dispose());
+
+        JLabel titleLabel = new JLabel("Tambah Karyawan", SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(Color.decode("#222222"));
+        titleLabel.setOpaque(false);
+
+        titleBar.add(btnClose);
+        titleBar.add(Box.createHorizontalGlue());
+        titleBar.add(titleLabel);
+        titleBar.add(Box.createHorizontalGlue());
+
+        dialog.add(titleBar, BorderLayout.NORTH);
+
+        // Content
+        JPanel contentPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 20, 20));
+        contentPanel.setOpaque(false);
+
+        JPanel formPanel = new JPanel(new GridBagLayout());
+        formPanel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(5, 5, 5, 5);
-        
-        JTextField txtName = new JTextField(20);
-        JTextField txtUsername = new JTextField(20);
+        gbc.insets = new Insets(8, 8, 8, 8);
+
+        JTextField txtName = createStyledTextField(20);
+        JTextField txtUsername = createStyledTextField(20);
         JPasswordField txtPassword = new JPasswordField(20);
-        JTextField txtNIK = new JTextField(20);
+        stylePasswordField(txtPassword);
+        JTextField txtNIK = createStyledTextField(20);
         JTextArea txtAddress = new JTextArea(3, 20);
-        JTextField txtCity = new JTextField(20);
-        JTextField txtPhone = new JTextField(20);
+        txtAddress.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtAddress.setLineWrap(true);
+        txtAddress.setWrapStyleWord(true);
+        txtAddress.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(8, 10, 8, 10)
+        ));
+        txtAddress.setBackground(Color.WHITE);
+        JTextField txtCity = createStyledTextField(20);
+        JTextField txtPhone = createStyledTextField(20);
         JComboBox<String> cmbRole = new JComboBox<>(new String[]{"admin", "cashier"});
-        
+        cmbRole.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbRole.setBackground(Color.WHITE);
+        cmbRole.setForeground(Color.decode("#222222"));
+
         int row = 0;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Nama:"), gbc);
+        formPanel.add(new JLabel("Nama:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtName, gbc);
-        
+        formPanel.add(txtName, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Username:"), gbc);
+        formPanel.add(new JLabel("Username:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtUsername, gbc);
-        
+        formPanel.add(txtUsername, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Password:"), gbc);
+        formPanel.add(new JLabel("Password:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtPassword, gbc);
-        
+        formPanel.add(txtPassword, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("NIK:"), gbc);
+        formPanel.add(new JLabel("NIK:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtNIK, gbc);
-        
+        formPanel.add(txtNIK, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Alamat:"), gbc);
+        formPanel.add(new JLabel("Alamat:"), gbc);
         gbc.gridx = 1;
-        panel.add(new JScrollPane(txtAddress), gbc);
-        
+        formPanel.add(new JScrollPane(txtAddress), gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Kota:"), gbc);
+        formPanel.add(new JLabel("Kota:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtCity, gbc);
-        
+        formPanel.add(txtCity, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Telepon:"), gbc);
+        formPanel.add(new JLabel("Telepon:"), gbc);
         gbc.gridx = 1;
-        panel.add(txtPhone, gbc);
-        
+        formPanel.add(txtPhone, gbc);
+
         row++;
         gbc.gridx = 0; gbc.gridy = row;
-        panel.add(new JLabel("Role:"), gbc);
+        formPanel.add(new JLabel("Role:"), gbc);
         gbc.gridx = 1;
-        panel.add(cmbRole, gbc);
-        
-        row++;
-        gbc.gridx = 0; gbc.gridy = row;
-        gbc.gridwidth = 2;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        
-        JButton btnSave = new JButton("Simpan");
-        btnSave.setBackground(new Color(46, 204, 113));
-        btnSave.setForeground(new Color(46, 204, 113));
-        btnSave.addActionListener(e -> {
+        formPanel.add(cmbRole, gbc);
+
+        contentPanel.add(formPanel, BorderLayout.CENTER);
+
+        // Button Panel
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+
+        JButton btnSave = createStyledButton("Simpan", new Color(46, 204, 113), e -> {
             if (validateInput(txtName, txtUsername, txtPassword, txtNIK, txtPhone)) {
                 saveUser(null, txtName.getText(), txtUsername.getText(), 
                         new String(txtPassword.getPassword()), txtNIK.getText(),
@@ -238,17 +338,86 @@ public class UserManagementPanel extends JPanel {
                 loadData();
             }
         });
-        
-        JButton btnCancel = new JButton("Batal");
-        btnCancel.addActionListener(e -> dialog.dispose());
-        
+
+        JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
+
         btnPanel.add(btnSave);
         btnPanel.add(btnCancel);
-        panel.add(btnPanel, gbc);
-        
-        dialog.add(panel);
+        contentPanel.add(btnPanel, BorderLayout.SOUTH);
+
+        dialog.add(contentPanel, BorderLayout.CENTER);
+
+        // Drag window
+        addWindowDrag(titleBar, dialog);
+        updateDialogShape(dialog);
+
         dialog.setVisible(true);
     }
+    
+    // Helper untuk dialog edit & add
+    private void stylePasswordField(JPasswordField field) {
+        field.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        field.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        ));
+        field.setBackground(Color.WHITE);
+        field.setForeground(Color.decode("#222222"));
+        field.setEchoChar('•');
+    }
+    
+    private JButton createMacOSButton(Color color) {
+        JButton button = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(color);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+
+                if (getModel().isRollover()) {
+                    g2.setColor(Color.BLACK);
+                    g2.setStroke(new BasicStroke(1.2f));
+                    int cx = getWidth() / 2;
+                    int cy = getHeight() / 2;
+
+                    if (color.equals(new Color(0xFF5F57))) {
+                        g2.drawLine(cx - 3, cy - 3, cx + 3, cy + 3);
+                        g2.drawLine(cx + 3, cy - 3, cx - 3, cy + 3);
+                    }
+                }
+                g2.dispose();
+            }
+        };
+        button.setPreferredSize(new Dimension(14, 14));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return button;
+    }
+
+    private void addWindowDrag(Component comp, JDialog dialog) {
+        comp.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                mousePoint = e.getPoint();
+            }
+        });
+        comp.addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                Point curr = e.getLocationOnScreen();
+                dialog.setLocation(curr.x - mousePoint.x, curr.y - mousePoint.y);
+            }
+        });
+    }
+
+    private void updateDialogShape(JDialog dialog) {
+        int arc = 20;
+        Shape shape = new RoundRectangle2D.Double(0, 0, dialog.getWidth(), dialog.getHeight(), arc, arc);
+        dialog.setShape(shape);
+    }
+    
+    // ... (method lain seperti showEditDialog, validateInput, saveUser, dll TETAP SAMA)
     
     private void showEditDialog() {
         int row = table.getSelectedRow();
@@ -259,7 +428,6 @@ public class UserManagementPanel extends JPanel {
         
         int id = (int) table.getValueAt(row, 0);
         
-        // Load data
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT * FROM users WHERE id = ?";
             PreparedStatement ps = conn.prepareStatement(sql);
@@ -268,92 +436,152 @@ public class UserManagementPanel extends JPanel {
             
             if (rs.next()) {
                 JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Karyawan", true);
-                dialog.setSize(300, 450);
+                dialog.setUndecorated(true);
+                dialog.setSize(400, 520);
                 dialog.setLocationRelativeTo(this);
-                
-                JPanel panel = new JPanel(new GridBagLayout());
-                panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+                dialog.setLayout(new BorderLayout());
+
+                JPanel titleBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10)) {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2d = (Graphics2D) g.create();
+                        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2d.setColor(Color.decode("#b3ebf2"));
+                        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                        g2d.dispose();
+                        super.paintComponent(g);
+                    }
+                };
+                titleBar.setPreferredSize(new Dimension(400, 40));
+                titleBar.setOpaque(false);
+
+                JButton btnClose = createMacOSButton(new Color(0xFF5F57));
+                btnClose.addActionListener(e -> dialog.dispose());
+
+                JLabel titleLabel = new JLabel("Edit Karyawan", SwingConstants.CENTER);
+                titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                titleLabel.setForeground(Color.decode("#222222"));
+                titleLabel.setOpaque(false);
+
+                titleBar.add(btnClose);
+                titleBar.add(Box.createHorizontalGlue());
+                titleBar.add(titleLabel);
+                titleBar.add(Box.createHorizontalGlue());
+
+                dialog.add(titleBar, BorderLayout.NORTH);
+
+                JPanel contentPanel = new JPanel(new BorderLayout()) {
+                    @Override
+                    protected void paintComponent(Graphics g) {
+                        Graphics2D g2d = (Graphics2D) g.create();
+                        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2d.setColor(Color.decode("#b3ebf2"));
+                        g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                        g2d.dispose();
+                        super.paintComponent(g);
+                    }
+                };
+                contentPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 20, 20));
+                contentPanel.setOpaque(false);
+
+                JPanel formPanel = new JPanel(new GridBagLayout());
+                formPanel.setOpaque(false);
                 GridBagConstraints gbc = new GridBagConstraints();
                 gbc.fill = GridBagConstraints.HORIZONTAL;
-                gbc.insets = new Insets(5, 5, 5, 5);
-                
-                JTextField txtName = new JTextField(rs.getString("name"), 20);
-                JTextField txtUsername = new JTextField(rs.getString("username"), 20);
-                JTextField txtNIK = new JTextField(rs.getString("nik"), 20);
+                gbc.insets = new Insets(8, 8, 8, 8);
+
+                JTextField txtName = createStyledTextField(20);
+                txtName.setText(rs.getString("name"));
+                JTextField txtUsername = createStyledTextField(20);
+                txtUsername.setText(rs.getString("username"));
+                JTextField txtNIK = createStyledTextField(20);
+                txtNIK.setText(rs.getString("nik"));
                 JTextArea txtAddress = new JTextArea(rs.getString("address"), 3, 20);
-                JTextField txtCity = new JTextField(rs.getString("city"), 20);
-                JTextField txtPhone = new JTextField(rs.getString("phone"), 20);
-                
-                // Get role
+                txtAddress.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                txtAddress.setLineWrap(true);
+                txtAddress.setWrapStyleWord(true);
+                txtAddress.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+                    BorderFactory.createEmptyBorder(8, 10, 8, 10)
+                ));
+                txtAddress.setBackground(Color.WHITE);
+                JTextField txtCity = createStyledTextField(20);
+                txtCity.setText(rs.getString("city"));
+                JTextField txtPhone = createStyledTextField(20);
+                txtPhone.setText(rs.getString("phone"));
+
                 String sql2 = "SELECT r.name FROM roles r JOIN users u ON r.id = u.role_id WHERE u.id = ?";
                 PreparedStatement ps2 = conn.prepareStatement(sql2);
                 ps2.setInt(1, id);
                 ResultSet rs2 = ps2.executeQuery();
                 String currentRole = rs2.next() ? rs2.getString("name") : "cashier";
-                
+
                 JComboBox<String> cmbRole = new JComboBox<>(new String[]{"admin", "cashier"});
+                cmbRole.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                cmbRole.setBackground(Color.WHITE);
+                cmbRole.setForeground(Color.decode("#222222"));
                 cmbRole.setSelectedItem(currentRole);
-                
+
                 JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"active", "inactive"});
+                cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+                cmbStatus.setBackground(Color.WHITE);
+                cmbStatus.setForeground(Color.decode("#222222"));
                 cmbStatus.setSelectedItem(rs.getString("status"));
-                
+
                 int r = 0;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Nama:"), gbc);
+                formPanel.add(new JLabel("Nama:"), gbc);
                 gbc.gridx = 1;
-                panel.add(txtName, gbc);
-                
+                formPanel.add(txtName, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Username:"), gbc);
+                formPanel.add(new JLabel("Username:"), gbc);
                 gbc.gridx = 1;
-                panel.add(txtUsername, gbc);
-                
+                formPanel.add(txtUsername, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("NIK:"), gbc);
+                formPanel.add(new JLabel("NIK:"), gbc);
                 gbc.gridx = 1;
-                panel.add(txtNIK, gbc);
-                
+                formPanel.add(txtNIK, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Alamat:"), gbc);
+                formPanel.add(new JLabel("Alamat:"), gbc);
                 gbc.gridx = 1;
-                panel.add(new JScrollPane(txtAddress), gbc);
-                
+                formPanel.add(new JScrollPane(txtAddress), gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Kota:"), gbc);
+                formPanel.add(new JLabel("Kota:"), gbc);
                 gbc.gridx = 1;
-                panel.add(txtCity, gbc);
-                
+                formPanel.add(txtCity, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Telepon:"), gbc);
+                formPanel.add(new JLabel("Telepon:"), gbc);
                 gbc.gridx = 1;
-                panel.add(txtPhone, gbc);
-                
+                formPanel.add(txtPhone, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Role:"), gbc);
+                formPanel.add(new JLabel("Role:"), gbc);
                 gbc.gridx = 1;
-                panel.add(cmbRole, gbc);
-                
+                formPanel.add(cmbRole, gbc);
+
                 r++;
                 gbc.gridx = 0; gbc.gridy = r;
-                panel.add(new JLabel("Status:"), gbc);
+                formPanel.add(new JLabel("Status:"), gbc);
                 gbc.gridx = 1;
-                panel.add(cmbStatus, gbc);
-                
-                r++;
-                gbc.gridx = 0; gbc.gridy = r;
-                gbc.gridwidth = 2;
-                JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-                
-                JButton btnUpdate = new JButton("Update");
-                btnUpdate.setBackground(new Color(52, 152, 219));
-                btnUpdate.setForeground(new Color(52, 152, 219));
-                btnUpdate.addActionListener(e -> {
+                formPanel.add(cmbStatus, gbc);
+
+                contentPanel.add(formPanel, BorderLayout.CENTER);
+
+                JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+                btnPanel.setOpaque(false);
+
+                JButton btnUpdate = createStyledButton("Update", new Color(52, 152, 219), e -> {
                     if (validateInputEdit(txtName, txtUsername, txtNIK, txtPhone)) {
                         updateUser(id, txtName.getText(), txtUsername.getText(),
                                 txtNIK.getText(), txtAddress.getText(), txtCity.getText(),
@@ -363,15 +591,18 @@ public class UserManagementPanel extends JPanel {
                         loadData();
                     }
                 });
-                
-                JButton btnCancel = new JButton("Batal");
-                btnCancel.addActionListener(e -> dialog.dispose());
-                
+
+                JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
+
                 btnPanel.add(btnUpdate);
                 btnPanel.add(btnCancel);
-                panel.add(btnPanel, gbc);
-                
-                dialog.add(panel);
+                contentPanel.add(btnPanel, BorderLayout.SOUTH);
+
+                dialog.add(contentPanel, BorderLayout.CENTER);
+
+                addWindowDrag(titleBar, dialog);
+                updateDialogShape(dialog);
+
                 dialog.setVisible(true);
             }
         } catch (SQLException e) {
@@ -429,7 +660,6 @@ public class UserManagementPanel extends JPanel {
     private void saveUser(Integer id, String name, String username, String password,
                          String nik, String address, String city, String phone, String role) {
         try (Connection conn = DatabaseConfig.getConnection()) {
-            // Get role_id
             String sqlRole = "SELECT id FROM roles WHERE name = ?";
             PreparedStatement psRole = conn.prepareStatement(sqlRole);
             psRole.setString(1, role);
@@ -458,7 +688,6 @@ public class UserManagementPanel extends JPanel {
     private void updateUser(int id, String name, String username, String nik,
                            String address, String city, String phone, String role, String status) {
         try (Connection conn = DatabaseConfig.getConnection()) {
-            // Get role_id
             String sqlRole = "SELECT id FROM roles WHERE name = ?";
             PreparedStatement psRole = conn.prepareStatement(sqlRole);
             psRole.setString(1, role);
@@ -524,6 +753,13 @@ public class UserManagementPanel extends JPanel {
         String name = (String) table.getValueAt(row, 1);
         
         JPasswordField pwd = new JPasswordField(20);
+        pwd.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        pwd.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(5, 8, 5, 8)
+        ));
+        pwd.setBackground(Color.WHITE);
+        
         int option = JOptionPane.showConfirmDialog(this,
             new Object[]{"Password baru untuk " + name + ":", pwd},
             "Ubah Password", JOptionPane.OK_CANCEL_OPTION);
@@ -548,4 +784,6 @@ public class UserManagementPanel extends JPanel {
             }
         }
     }
+    
+    private Point mousePoint;
 }
