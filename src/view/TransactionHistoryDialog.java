@@ -3,6 +3,8 @@ package view;
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.RoundRectangle2D;
 import java.sql.*;
 import com.toedter.calendar.JDateChooser;
 import config.DatabaseConfig;
@@ -13,9 +15,11 @@ public class TransactionHistoryDialog extends JDialog {
     private JTable table;
     private JDateChooser dateFrom, dateTo;
     private JLabel lblTotalCash, lblTotalQRIS, lblTotalTransfer, lblTotalPenjualan;
+    private Point mousePoint;
 
     public TransactionHistoryDialog(Frame parent) {
-        super(parent, "Riwayat Transaksi", true);
+        super(parent, false); // non-modal, tanpa title bar sistem
+        this.setUndecorated(true);
         initComponents();
         loadData();
     }
@@ -23,65 +27,94 @@ public class TransactionHistoryDialog extends JDialog {
     private void initComponents() {
         setSize(950, 620);
         setLocationRelativeTo(getParent());
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout());
 
-        // Header Panel
-        JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(new Color(52, 152, 219));
-        headerPanel.setPreferredSize(new Dimension(0, 60));
-        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        // =================== CUSTOM TITLE BAR ===================
+        JPanel titleBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10)) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        titleBar.setPreferredSize(new Dimension(950, 40));
+        titleBar.setOpaque(false);
 
-        JLabel lblTitle = new JLabel("Riwayat Transaksi - " + SessionManager.getCurrentUserName());
-        lblTitle.setFont(new Font("Arial", Font.BOLD, 18));
-        lblTitle.setForeground(Color.WHITE);
+        JButton btnClose = createMacOSButton(new Color(0xFF5F57));
+        btnClose.addActionListener(e -> dispose());
 
-        headerPanel.add(lblTitle, BorderLayout.WEST);
-        add(headerPanel, BorderLayout.NORTH);
+        JLabel titleLabel = new JLabel("Riwayat Transaksi - " + SessionManager.getCurrentUserName(), SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        titleLabel.setForeground(Color.decode("#222222"));
+        titleLabel.setOpaque(false);
+
+        titleBar.add(btnClose);
+        titleBar.add(Box.createHorizontalGlue());
+        titleBar.add(titleLabel);
+        titleBar.add(Box.createHorizontalGlue());
+
+        add(titleBar, BorderLayout.NORTH);
+
+        // =================== MAIN CONTENT PANEL ===================
+        JPanel mainPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 20, 20, 20));
+        mainPanel.setOpaque(false);
+
+        // Header (simpan info kasir di dalam mainPanel)
+        JLabel lblHeader = new JLabel("Riwayat Transaksi", SwingConstants.CENTER);
+        lblHeader.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblHeader.setForeground(Color.decode("#222222"));
+        lblHeader.setBorder(BorderFactory.createEmptyBorder(0, 0, 15, 0));
+        mainPanel.add(lblHeader, BorderLayout.NORTH);
 
         // Filter Panel
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        filterPanel.setBackground(Color.WHITE);
-        filterPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        filterPanel.setOpaque(false);
 
         filterPanel.add(new JLabel("Dari:"));
         dateFrom = new JDateChooser();
-        dateFrom.setPreferredSize(new Dimension(120, 25));
+        dateFrom.setPreferredSize(new Dimension(130, 30));
+        styleDateChooser(dateFrom);
         filterPanel.add(dateFrom);
 
         filterPanel.add(new JLabel("Sampai:"));
         dateTo = new JDateChooser();
-        dateTo.setPreferredSize(new Dimension(120, 25));
-        dateTo.setDate(new java.util.Date());
+        dateTo.setPreferredSize(new Dimension(130, 30));
+        styleDateChooser(dateTo);
+        java.util.Date today = new java.util.Date();
+        dateFrom.setDate(today);
+        dateTo.setDate(today);
         filterPanel.add(dateTo);
 
-        JButton btnFilter = new JButton("Tampilkan");
-        btnFilter.setBackground(new Color(52, 152, 219));
-        btnFilter.setForeground(Color.BLACK);
-        btnFilter.setFocusPainted(false);
-        btnFilter.addActionListener(e -> validateAndLoadData());
-        filterPanel.add(btnFilter);
+        JButton btnFilter = createStyledButton("Tampilkan", new Color(52, 152, 219), e -> validateAndLoadData());
+        JButton btnPrint = createStyledButton("Cetak Struk", new Color(46, 204, 113), e -> printReceipt());
 
-        JButton btnPrint = new JButton("Cetak Struk");
-        btnPrint.setBackground(new Color(46, 204, 113));
-        btnPrint.setForeground(Color.BLACK);
-        btnPrint.setFocusPainted(false);
-        btnPrint.addActionListener(e -> printReceipt());
+        filterPanel.add(btnFilter);
         filterPanel.add(btnPrint);
 
-        // Summary Panel (4 cards)
-        JPanel summaryPanel = new JPanel(new GridLayout(1, 4, 10, 0));
-        summaryPanel.setBackground(Color.WHITE);
-        summaryPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Summary Panel
+        JPanel summaryPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+        summaryPanel.setOpaque(false);
+        summaryPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 15, 0));
 
-        JPanel cardCash = createSummaryCard("Cash", "Rp 0", new Color(39, 174, 96));       // Hijau
-        JPanel cardQRIS = createSummaryCard("QRIS", "Rp 0", new Color(41, 128, 185));      // Biru
-        JPanel cardTransfer = createSummaryCard("Transfer", "Rp 0", new Color(155, 89, 182)); // Ungu
-        JPanel cardTotal = createSummaryCard("Total Penjualan", "Rp 0", new Color(230, 126, 34)); // Oranye
-
-        summaryPanel.add(cardCash);
-        summaryPanel.add(cardQRIS);
-        summaryPanel.add(cardTransfer);
-        summaryPanel.add(cardTotal);
+        summaryPanel.add(createSummaryCard("Cash", "Rp 0", new Color(39, 174, 96)));
+        summaryPanel.add(createSummaryCard("QRIS", "Rp 0", new Color(41, 128, 185)));
+        summaryPanel.add(createSummaryCard("Transfer", "Rp 0", new Color(155, 89, 182)));
+        summaryPanel.add(createSummaryCard("Total Penjualan", "Rp 0", new Color(230, 126, 34)));
 
         // Table
         String[] columns = {"Kode", "Tanggal", "Total", "Metode", "Status"};
@@ -93,15 +126,23 @@ public class TransactionHistoryDialog extends JDialog {
         };
 
         table = new JTable(tableModel);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.setRowHeight(25);
+        table.setRowHeight(28);
+        table.setSelectionBackground(new Color(236, 240, 241));
+        table.setSelectionForeground(Color.BLACK);
         table.getColumnModel().getColumn(0).setPreferredWidth(150);
         table.getColumnModel().getColumn(1).setPreferredWidth(150);
         table.getColumnModel().getColumn(2).setCellRenderer(new CurrencyRenderer());
 
-        // Double click to view details
-        table.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent e) {
+        JTableHeader header = table.getTableHeader();
+        header.setBackground(new Color(236, 240, 241));
+        header.setForeground(Color.BLACK);
+        header.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
+
+        table.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
                     showTransactionDetails();
                 }
@@ -109,72 +150,56 @@ public class TransactionHistoryDialog extends JDialog {
         });
 
         JScrollPane scrollPane = new JScrollPane(table);
+        scrollPane.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
 
         // Bottom Panel
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        bottomPanel.setBackground(Color.WHITE);
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        bottomPanel.setOpaque(false);
 
-        JButton btnClose = new JButton("Tutup");
-        btnClose.setPreferredSize(new Dimension(100, 35));
-        btnClose.addActionListener(e -> dispose());
-        bottomPanel.add(btnClose);
+        JButton btnClosee = createStyledButton("Tutup", Color.GRAY, e -> dispose());
+        bottomPanel.add(btnClosee);
 
-        // Main Content Panel
-        JPanel contentPanel = new JPanel(new BorderLayout());
-        contentPanel.setBackground(Color.WHITE);
-        contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        contentPanel.add(filterPanel, BorderLayout.NORTH);
-
+        // Assemble
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.setBackground(Color.WHITE);
+        centerPanel.setOpaque(false);
         centerPanel.add(summaryPanel, BorderLayout.NORTH);
         centerPanel.add(scrollPane, BorderLayout.CENTER);
 
-        contentPanel.add(centerPanel, BorderLayout.CENTER);
-        contentPanel.add(bottomPanel, BorderLayout.SOUTH);
+        mainPanel.add(filterPanel, BorderLayout.NORTH);
+        mainPanel.add(centerPanel, BorderLayout.CENTER);
+        mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
-        add(contentPanel, BorderLayout.CENTER);
+        add(mainPanel, BorderLayout.CENTER);
 
-        // Set default date today
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        dateFrom.setDate(new java.util.Date());
-        dateTo.setDate(new java.util.Date());
+        // Drag & shape
+        addWindowDrag(titleBar);
+        updateWindowShape();
     }
 
+    // === HELPER METHODS ===
     private JPanel createSummaryCard(String title, String value, Color color) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(color);
-        card.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(15, 15, 15, 15)
+        ));
 
         JLabel lblTitle = new JLabel(title);
         lblTitle.setForeground(Color.WHITE);
-        lblTitle.setFont(new Font("Arial", Font.PLAIN, 12));
+        lblTitle.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
         JLabel lblValue;
         switch (title) {
-            case "Cash":
-                lblTotalCash = new JLabel(value);
-                lblValue = lblTotalCash;
-                break;
-            case "QRIS":
-                lblTotalQRIS = new JLabel(value);
-                lblValue = lblTotalQRIS;
-                break;
-            case "Transfer":
-                lblTotalTransfer = new JLabel(value);
-                lblValue = lblTotalTransfer;
-                break;
-            case "Total Penjualan":
-                lblTotalPenjualan = new JLabel(value);
-                lblValue = lblTotalPenjualan;
-                break;
-            default:
-                lblValue = new JLabel(value);
+            case "Cash": lblTotalCash = new JLabel(value); lblValue = lblTotalCash; break;
+            case "QRIS": lblTotalQRIS = new JLabel(value); lblValue = lblTotalQRIS; break;
+            case "Transfer": lblTotalTransfer = new JLabel(value); lblValue = lblTotalTransfer; break;
+            case "Total Penjualan": lblTotalPenjualan = new JLabel(value); lblValue = lblTotalPenjualan; break;
+            default: lblValue = new JLabel(value);
         }
 
         lblValue.setForeground(Color.WHITE);
-        lblValue.setFont(new Font("Arial", Font.BOLD, 16));
+        lblValue.setFont(new Font("Segoe UI", Font.BOLD, 16));
 
         card.add(lblTitle, BorderLayout.NORTH);
         card.add(lblValue, BorderLayout.CENTER);
@@ -182,11 +207,104 @@ public class TransactionHistoryDialog extends JDialog {
         return card;
     }
 
+    private JButton createStyledButton(String text, Color bgColor, ActionListener listener) {
+        JButton btn = new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (getModel().isPressed()) {
+                    g2.setColor(bgColor.darker());
+                } else if (getModel().isRollover()) {
+                    g2.setColor(bgColor.brighter());
+                } else {
+                    g2.setColor(bgColor);
+                }
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        btn.setFocusPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setPreferredSize(new Dimension(120, 32));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(listener);
+        return btn;
+    }
+
+    // Helper: date chooser stylish
+    private void styleDateChooser(JDateChooser chooser) {
+        JFormattedTextField textField =
+        (JFormattedTextField) chooser.getDateEditor().getUiComponent();
+        textField.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        textField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(189, 195, 199), 1),
+            BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        ));
+        textField.setBackground(Color.WHITE);
+        textField.setForeground(Color.decode("#222222"));
+    }
+
+    private JButton createMacOSButton(Color color) {
+        JButton button = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(color);
+                g2.fillOval(0, 0, getWidth(), getHeight());
+
+                if (getModel().isRollover()) {
+                    g2.setColor(Color.BLACK);
+                    g2.setStroke(new BasicStroke(1.2f));
+                    int cx = getWidth() / 2;
+                    int cy = getHeight() / 2;
+
+                    if (color.equals(new Color(0xFF5F57))) {
+                        g2.drawLine(cx - 3, cy - 3, cx + 3, cy + 3);
+                        g2.drawLine(cx + 3, cy - 3, cx - 3, cy + 3);
+                    }
+                }
+                g2.dispose();
+            }
+        };
+        button.setPreferredSize(new Dimension(14, 14));
+        button.setContentAreaFilled(false);
+        button.setBorderPainted(false);
+        button.setFocusPainted(false);
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return button;
+    }
+
+    private void addWindowDrag(Component comp) {
+        comp.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) {
+                mousePoint = e.getPoint();
+            }
+        });
+        comp.addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                Point curr = e.getLocationOnScreen();
+                setLocation(curr.x - mousePoint.x, curr.y - mousePoint.y);
+            }
+        });
+    }
+
+    private void updateWindowShape() {
+        int arc = 20;
+        Shape shape = new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), arc, arc);
+        setShape(shape);
+    }
+
+    // === LOGIKA UTAMA (TETAP SAMA) ===
     private void loadData() {
         tableModel.setRowCount(0);
 
         if (dateFrom.getDate() == null || dateTo.getDate() == null) {
-            JOptionPane.showMessageDialog(this, "Pilih periode tanggal!");
             return;
         }
 
@@ -223,20 +341,13 @@ public class TransactionHistoryDialog extends JDialog {
                 if ("completed".equals(status)) {
                     totalAll += amount;
                     switch (method) {
-                        case "cash":
-                            totalCash += amount;
-                            break;
-                        case "qris":
-                            totalQRIS += amount;
-                            break;
-                        case "transfer":
-                            totalTransfer += amount;
-                            break;
+                        case "cash": totalCash += amount; break;
+                        case "qris": totalQRIS += amount; break;
+                        case "transfer": totalTransfer += amount; break;
                     }
                 }
             }
 
-            // Update summary cards
             lblTotalCash.setText(FormatterUtils.formatCurrency(totalCash));
             lblTotalQRIS.setText(FormatterUtils.formatCurrency(totalQRIS));
             lblTotalTransfer.setText(FormatterUtils.formatCurrency(totalTransfer));
@@ -249,10 +360,7 @@ public class TransactionHistoryDialog extends JDialog {
 
     private void validateAndLoadData() {
         if (dateFrom.getDate() == null || dateTo.getDate() == null) {
-            JOptionPane.showMessageDialog(this, 
-                "Harap pilih periode tanggal terlebih dahulu!", 
-                "Validasi Tanggal", 
-                JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Harap pilih periode tanggal terlebih dahulu!");
             return;
         }
 
@@ -260,10 +368,7 @@ public class TransactionHistoryDialog extends JDialog {
         java.util.Date toDate = dateTo.getDate();
 
         if (fromDate.after(toDate)) {
-            JOptionPane.showMessageDialog(this,
-                "Tanggal 'Dari' tidak boleh lebih dari tanggal 'Sampai'!",
-                "Validasi Tanggal",
-                JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Tanggal 'Dari' tidak boleh lebih dari tanggal 'Sampai'!");
             return;
         }
 
