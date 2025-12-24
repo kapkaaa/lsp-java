@@ -228,15 +228,26 @@ public class ProductManagementPanel extends JPanel {
     private void showAddProductDialog() {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Produk Baru", true);
         dialog.setUndecorated(true);
-        dialog.setSize(600, 400);
+        dialog.setSize(600, 420);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new BorderLayout());
 
         JPanel titleBar = createDialogTitleBar("Tambah Produk Baru", dialog);
         dialog.add(titleBar, BorderLayout.NORTH);
 
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel panel = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+        panel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
@@ -260,7 +271,12 @@ public class ProductManagementPanel extends JPanel {
         lblInfo.setForeground(Color.GRAY);
         panel.add(lblInfo, gbc);
 
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        
         JButton btnSave = createStyledButton("Simpan & Tambah Varian", new Color(46, 204, 113), e -> {
             if (validateProductInput(txtName, txtCostPrice, txtSellingPrice)) {
                 int productId = saveProduct(
@@ -348,62 +364,77 @@ public class ProductManagementPanel extends JPanel {
         }
         
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Produk", true);
-       dialog.setUndecorated(true);
-       dialog.setSize(600, 400);
-       dialog.setLocationRelativeTo(this);
-       dialog.setLayout(new BorderLayout());
+        dialog.setUndecorated(true);
+        dialog.setSize(600, 420);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
 
-       JPanel titleBar = createDialogTitleBar("Edit Produk", dialog);
-       dialog.add(titleBar, BorderLayout.NORTH);
+        JPanel titleBar = createDialogTitleBar("Edit Produk", dialog);
+        dialog.add(titleBar, BorderLayout.NORTH);
 
-       JPanel panel = new JPanel(new GridBagLayout());
-       panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-       GridBagConstraints gbc = new GridBagConstraints();
-       gbc.fill = GridBagConstraints.HORIZONTAL;
-       gbc.insets = new Insets(8, 8, 12, 8);
+        JPanel panel = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+        panel.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 8, 12, 8);
 
-       JTextField txtName = createStyledTextField(25);
-       txtName.setText(productName);
-       JTextField txtCostPrice = createStyledTextField(25);
-       txtCostPrice.setText(String.valueOf(costPrice));
-       JTextField txtSellingPrice = createStyledTextField(25);
-       txtSellingPrice.setText(String.valueOf(sellingPrice));
-       JComboBox<ComboItem> cmbBrand = loadComboData("brands");
-       JComboBox<ComboItem> cmbType = loadComboData("types");
-       selectComboItem(cmbBrand, brandId);
-       selectComboItem(cmbType, typeId);
+        JTextField txtName = createStyledTextField(25);
+        txtName.setText(productName);
+        JTextField txtCostPrice = createStyledTextField(25);
+        txtCostPrice.setText(String.valueOf(costPrice));
+        JTextField txtSellingPrice = createStyledTextField(25);
+        txtSellingPrice.setText(String.valueOf(sellingPrice));
+        JComboBox<ComboItem> cmbBrand = loadComboData("brands");
+        JComboBox<ComboItem> cmbType = loadComboData("types");
+        selectComboItem(cmbBrand, brandId);
+        selectComboItem(cmbType, typeId);
 
-       int row = 0;
-       addFormRow(panel, gbc, row++, "Nama Produk:", txtName);
-       addFormRow(panel, gbc, row++, "Merek:", cmbBrand);
-       addFormRow(panel, gbc, row++, "Tipe:", cmbType);
-       addFormRow(panel, gbc, row++, "Harga Beli:", txtCostPrice);
-       addFormRow(panel, gbc, row++, "Harga Jual:", txtSellingPrice);
+        int row = 0;
+        addFormRow(panel, gbc, row++, "Nama Produk:", txtName);
+        addFormRow(panel, gbc, row++, "Merek:", cmbBrand);
+        addFormRow(panel, gbc, row++, "Tipe:", cmbType);
+        addFormRow(panel, gbc, row++, "Harga Beli:", txtCostPrice);
+        addFormRow(panel, gbc, row++, "Harga Jual:", txtSellingPrice);
+ 
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        JButton btnUpdate = createStyledButton("Update", new Color(52, 152, 219), e -> {
+            if (validateProductInput(txtName, txtCostPrice, txtSellingPrice)) {
+                if (updateProduct(id,
+                    txtName.getText(),
+                    ((ComboItem) cmbBrand.getSelectedItem()).getId(),
+                    ((ComboItem) cmbType.getSelectedItem()).getId(),
+                    Double.parseDouble(txtCostPrice.getText()),
+                    Double.parseDouble(txtSellingPrice.getText()))) {
+                    JOptionPane.showMessageDialog(dialog, "Produk berhasil diupdate!");
+                    dialog.dispose();
+                    loadData();
+                }
+            }
+        });
+        JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
+        btnPanel.add(btnUpdate);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
 
-       JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-       JButton btnUpdate = createStyledButton("Update", new Color(52, 152, 219), e -> {
-           if (validateProductInput(txtName, txtCostPrice, txtSellingPrice)) {
-               if (updateProduct(id,
-                   txtName.getText(),
-                   ((ComboItem) cmbBrand.getSelectedItem()).getId(),
-                   ((ComboItem) cmbType.getSelectedItem()).getId(),
-                   Double.parseDouble(txtCostPrice.getText()),
-                   Double.parseDouble(txtSellingPrice.getText()))) {
-                   JOptionPane.showMessageDialog(dialog, "Produk berhasil diupdate!");
-                   dialog.dispose();
-                   loadData();
-               }
-           }
-       });
-       JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
-       btnPanel.add(btnUpdate);
-       btnPanel.add(btnCancel);
-       panel.add(btnPanel, gbc);
-
-       dialog.add(panel, BorderLayout.CENTER);
-       addWindowDrag(titleBar, dialog);
-       updateDialogShape(dialog);
-       dialog.setVisible(true);
+        dialog.add(panel, BorderLayout.CENTER);
+        addWindowDrag(titleBar, dialog);
+        updateDialogShape(dialog);
+        dialog.setVisible(true);
     }
 
     private boolean updateProduct(int id, String name, int brandId, int typeId, double costPrice, double sellingPrice) {
@@ -570,15 +601,26 @@ public class ProductManagementPanel extends JPanel {
     private void showAddVariantDialog(int productId, DefaultTableModel variantModel) {
         JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(500, 400);
+        dialog.setSize(600, 420);
         dialog.setLocationRelativeTo(this);
         dialog.setLayout(new BorderLayout());
 
         JPanel titleBar = createDialogTitleBar("Tambah Varian Produk", dialog);
         dialog.add(titleBar, BorderLayout.NORTH);
 
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        JPanel panel = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+        panel.setOpaque(false);
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
@@ -604,7 +646,11 @@ public class ProductManagementPanel extends JPanel {
         lblInfo.setForeground(Color.GRAY);
         panel.add(lblInfo, gbc);
 
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
         JButton btnSave = createStyledButton("Simpan", new Color(46, 204, 113), e -> {
             try {
                 int stock = Integer.parseInt(txtStock.getText());
@@ -670,80 +716,109 @@ public class ProductManagementPanel extends JPanel {
     }
 
     private void showEditVariantDialog(int variantId, int productId, DefaultTableModel variantModel) {
+        int stock = 0;
+        int colorId = 0;
+        int sizeId = 0;
+        String status = null;
+        
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM product_details WHERE id = ?")) {
             ps.setInt(1, variantId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Varian", true);
-                    dialog.setUndecorated(true);
-                    dialog.setSize(500, 350);
-                    dialog.setLocationRelativeTo(this);
-                    dialog.setLayout(new BorderLayout());
-
-                    JPanel titleBar = createDialogTitleBar("Edit Varian", dialog);
-                    dialog.add(titleBar, BorderLayout.NORTH);
-
-                    JPanel panel = new JPanel(new GridBagLayout());
-                    panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-                    GridBagConstraints gbc = new GridBagConstraints();
-                    gbc.fill = GridBagConstraints.HORIZONTAL;
-                    gbc.insets = new Insets(8, 8, 12, 8);
-
-                    JComboBox<ComboItem> cmbColor = loadComboData("colors");
-                    JComboBox<ComboItem> cmbSize = loadComboData("sizes");
-                    JTextField txtStock = createStyledTextField(20);
-                    txtStock.setText(String.valueOf(rs.getInt("stock")));
-                    JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
-                    cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-                    cmbStatus.setBackground(Color.WHITE);
-                    cmbStatus.setForeground(Color.decode("#222222"));
-                    selectComboItem(cmbColor, rs.getInt("color_id"));
-                    selectComboItem(cmbSize, rs.getInt("size_id"));
-                    cmbStatus.setSelectedItem(rs.getString("status"));
-
-                    int row = 0;
-                    addFormRow(panel, gbc, row++, "Warna:", cmbColor);
-                    addFormRow(panel, gbc, row++, "Size:", cmbSize);
-                    addFormRow(panel, gbc, row++, "Stok:", txtStock);
-                    addFormRow(panel, gbc, row++, "Status:", cmbStatus);
-
-                    JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-                    JButton btnUpdate = createStyledButton("Update", new Color(52, 152, 219), e -> {
-                        try {
-                            int stock = Integer.parseInt(txtStock.getText());
-                            if (stock < 0) {
-                                JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
-                                return;
-                            }
-                            if (updateVariant(variantId,
-                                ((ComboItem) cmbColor.getSelectedItem()).getId(),
-                                ((ComboItem) cmbSize.getSelectedItem()).getId(),
-                                stock,
-                                (String) cmbStatus.getSelectedItem())) {
-                                JOptionPane.showMessageDialog(dialog, "Varian berhasil diupdate!");
-                                loadVariants(variantModel, productId);
-                                loadData();
-                                dialog.dispose();
-                            }
-                        } catch (NumberFormatException ex) {
-                            JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
-                        }
-                    });
-                    JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
-                    btnPanel.add(btnUpdate);
-                    btnPanel.add(btnCancel);
-                    panel.add(btnPanel, gbc);
-
-                    dialog.add(panel, BorderLayout.CENTER);
-                    addWindowDrag(titleBar, dialog);
-                    updateDialogShape(dialog);
-                    dialog.setVisible(true);
+                    stock = rs.getInt("stock");
+                    colorId = rs.getInt("color_id");
+                    sizeId = rs.getInt("size_id");
+                    status = rs.getString("status");
+                } else {
+                  JOptionPane.showMessageDialog(this, "Varian tidak ditemukan!");
+                    return;
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return;
         }
+        
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Edit Varian", true);
+        dialog.setUndecorated(true);
+        dialog.setSize(500, 350);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel titleBar = createDialogTitleBar("Edit Varian", dialog);
+        dialog.add(titleBar, BorderLayout.NORTH);
+
+        JPanel panel = new JPanel(new GridBagLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2d.setColor(Color.decode("#b3ebf2"));
+                g2d.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+                g2d.dispose();
+                super.paintComponent(g);
+            }
+        };
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+        panel.setOpaque(false);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(8, 8, 12, 8);
+
+        JComboBox<ComboItem> cmbColor = loadComboData("colors");
+        JComboBox<ComboItem> cmbSize = loadComboData("sizes");
+        JTextField txtStock = createStyledTextField(20);
+        txtStock.setText(String.valueOf(stock));
+        JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
+        cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbStatus.setBackground(Color.WHITE);
+        cmbStatus.setForeground(Color.decode("#222222"));
+        selectComboItem(cmbColor, colorId);
+        selectComboItem(cmbSize, sizeId );
+        cmbStatus.setSelectedItem(status);
+
+        int row = 0;
+        addFormRow(panel, gbc, row++, "Warna:", cmbColor);
+        addFormRow(panel, gbc, row++, "Size:", cmbSize);
+        addFormRow(panel, gbc, row++, "Stok:", txtStock);
+        addFormRow(panel, gbc, row++, "Status:", cmbStatus);
+
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.NONE; 
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        btnPanel.setOpaque(false);
+        JButton btnUpdate = createStyledButton("Update", new Color(52, 152, 219), e -> {
+            try {
+                int newStock = Integer.parseInt(txtStock.getText());
+                if (newStock < 0) {
+                    JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
+                    return;
+                }
+                if (updateVariant(variantId,
+                    ((ComboItem) cmbColor.getSelectedItem()).getId(),
+                    ((ComboItem) cmbSize.getSelectedItem()).getId(),
+                    newStock,
+                    (String) cmbStatus.getSelectedItem())) {
+                    JOptionPane.showMessageDialog(dialog, "Varian berhasil diupdate!");
+                    loadVariants(variantModel, productId);
+                    loadData();
+                    dialog.dispose();
+                }
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
+            }
+        });
+        JButton btnCancel = createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
+        btnPanel.add(btnUpdate);
+        btnPanel.add(btnCancel);
+        panel.add(btnPanel, gbc);
+
+        dialog.add(panel, BorderLayout.CENTER);
+        addWindowDrag(titleBar, dialog);
+        updateDialogShape(dialog);
+        dialog.setVisible(true);
     }
 
     private boolean updateVariant(int variantId, int colorId, int sizeId, int stock, String status) {
