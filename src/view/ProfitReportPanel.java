@@ -219,11 +219,12 @@ class ProfitReportPanel extends JPanel {
                         "SUM(td.subtotal - (td.quantity * p.cost_price)) as profit " +
                         "FROM transaction_details td " +
                         "JOIN transactions t ON td.transaction_id = t.id " +
-                        "JOIN products p ON td.product_id = p.id " +
+                        "JOIN product_details pd ON td.product_detail_id = pd.id " +
+                        "JOIN products p ON pd.product_id = p.id " +
                         "JOIN brands b ON p.brand_id = b.id " +
                         "WHERE t.transaction_status = 'completed' " +
                         "AND DATE(t.created_at) BETWEEN ? AND ? " +
-                        "GROUP BY td.product_id " +
+                        "GROUP BY td.product_detail_id " +
                         "ORDER BY profit DESC";
             
             PreparedStatement ps = conn.prepareStatement(sql);
