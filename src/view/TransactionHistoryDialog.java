@@ -396,10 +396,11 @@ public class TransactionHistoryDialog extends JDialog {
                 String sql2 = "SELECT p.name, b.name as brand, s.name as size, " +
                             "c.name as color, td.quantity, td.unit_price, td.subtotal " +
                             "FROM transaction_details td " +
-                            "JOIN products p ON td.product_id = p.id " +
+                            "JOIN product_details pd ON td.product_detail_id = pd.id " +
+                            "JOIN products p ON pd.product_id = p.id" +
                             "JOIN brands b ON p.brand_id = b.id " +
-                            "JOIN sizes s ON p.size_id = s.id " +
-                            "JOIN colors c ON p.color_id = c.id " +
+                            "JOIN sizes s ON pd.size_id = s.id " +
+                            "JOIN colors c ON pd.color_id = c.id " +
                             "WHERE td.transaction_id = ?";
 
                 PreparedStatement ps2 = conn.prepareStatement(sql2);
@@ -477,7 +478,8 @@ public class TransactionHistoryDialog extends JDialog {
 
                 String sql2 = "SELECT p.name, td.quantity, td.unit_price, td.subtotal " +
                             "FROM transaction_details td " +
-                            "JOIN products p ON td.product_id = p.id " +
+                            "JOIN product_details pd ON td.product_detail_id = pd.id " +
+                            "JOIN products p ON pd.product_id = p.id " +
                             "WHERE td.transaction_id = ?";
 
                 PreparedStatement ps2 = conn.prepareStatement(sql2);
