@@ -104,7 +104,7 @@ public class DashboardKasir extends JFrame {
 
         mainPanel.add(titleBar, BorderLayout.NORTH);
 
-        // =================== HEADER PANEL (DI BAWAH TITLE BAR) ===================
+        // =================== HEADER PANEL ===================
         JPanel headerPanel = new JPanel(new BorderLayout());
         headerPanel.setBackground(new Color(52, 152, 219));
         headerPanel.setPreferredSize(new Dimension(0, 80));
@@ -150,7 +150,6 @@ public class DashboardKasir extends JFrame {
         mainPanel.add(centerPanel, BorderLayout.CENTER);
         add(mainPanel, BorderLayout.CENTER);
 
-        // Drag window
         addWindowDrag(titleBar);
         normalBounds = getBounds();
     }
@@ -172,12 +171,12 @@ public class DashboardKasir extends JFrame {
                     int cx = getWidth() / 2;
                     int cy = getHeight() / 2;
 
-                    if (color.equals(new Color(0xFF5F57))) { // Close
+                    if (color.equals(new Color(0xFF5F57))) {
                         g2.drawLine(cx - 3, cy - 3, cx + 3, cy + 3);
                         g2.drawLine(cx + 3, cy - 3, cx - 3, cy + 3);
-                    } else if (color.equals(new Color(0xFFBD2E))) { // Minimize
+                    } else if (color.equals(new Color(0xFFBD2E))) {
                         g2.drawLine(cx - 3, cy, cx + 3, cy);
-                    } else if (color.equals(new Color(0x28CA42))) { // Maximize/Restore
+                    } else if (color.equals(new Color(0x28CA42))) {
                         if (isMaximized) {
                             g2.drawRect(cx - 2, cy - 1, 3, 3);
                             g2.drawRect(cx - 1, cy - 2, 3, 3);
@@ -267,18 +266,13 @@ public class DashboardKasir extends JFrame {
         return btn;
     }
 
-    // ... (SEMUA METHOD LOGIKA TRANSAKSI TETAP SAMA: loadProducts, addToCart, processTransaction, dll)
-
-    // ✅ Salin SEMUA METHOD DARI KODE ASLI ANDA DI BAWAH INI (mulai dari createTransactionPanel() sampai CurrencyRenderer)
+    // =================== TRANSACTION PANEL ===================
 
     private JPanel createTransactionPanel() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(Color.WHITE);
         
-        // Left: Product list
         JPanel leftPanel = createProductPanel();
-        
-        // Right: Cart and payment
         JPanel rightPanel = createCartPanel();
         
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftPanel, rightPanel);
@@ -295,7 +289,6 @@ public class DashboardKasir extends JFrame {
         panel.setBackground(Color.WHITE);
         panel.setBorder(BorderFactory.createTitledBorder("Daftar Produk"));
         
-        // Search panel
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         searchPanel.setBackground(Color.WHITE);
         
@@ -309,8 +302,8 @@ public class DashboardKasir extends JFrame {
         });
         searchPanel.add(txtSearch);
         
-        // Product table
-        String[] columns = {"ID", "Produk", "Merek", "Warna", "Size", "Stok", "Harga"};
+        // ⭐ UPDATE: Kolom disesuaikan dengan product_details
+        String[] columns = {"ID Detail", "Produk", "Merek", "Warna", "Size", "Stok", "Harga"};
         productTableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -323,7 +316,7 @@ public class DashboardKasir extends JFrame {
         productTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
         productTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         productTable.setRowHeight(25);
-        productTable.getColumnModel().getColumn(0).setPreferredWidth(40);
+        productTable.getColumnModel().getColumn(0).setPreferredWidth(80);
         productTable.getColumnModel().getColumn(6).setCellRenderer(new CurrencyRenderer());
         
         productTable.addMouseListener(new MouseAdapter() {
@@ -532,24 +525,26 @@ public class DashboardKasir extends JFrame {
         }
     }
     
+    // ⭐ UPDATE: Load products dari product_details
     private void loadProducts() {
         productTableModel.setRowCount(0);
         try (Connection conn = DatabaseConfig.getConnection()) {
-            String sql = "SELECT p.id, p.name, b.name as brand, c.name as color, " +
-                        "s.name as size, p.stock, p.selling_price " +
-                        "FROM products p " +
+            String sql = "SELECT pd.id, p.name, b.name as brand, c.name as color, " +
+                        "s.name as size, pd.stock, p.selling_price " +
+                        "FROM product_details pd " +
+                        "JOIN products p ON pd.product_id = p.id " +
                         "JOIN brands b ON p.brand_id = b.id " +
-                        "JOIN colors c ON p.color_id = c.id " +
-                        "JOIN sizes s ON p.size_id = s.id " +
-                        "WHERE p.status = 'available' AND p.stock > 0 " +
-                        "ORDER BY p.name";
+                        "JOIN colors c ON pd.color_id = c.id " +
+                        "JOIN sizes s ON pd.size_id = s.id " +
+                        "WHERE pd.status = 'available' AND pd.stock > 0 " +
+                        "ORDER BY p.name, c.name, s.name";
             
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
             
             while (rs.next()) {
                 Object[] row = {
-                    rs.getInt("id"),
+                    rs.getInt("id"),              // product_detail_id
                     rs.getString("name"),
                     rs.getString("brand"),
                     rs.getString("color"),
@@ -576,6 +571,7 @@ public class DashboardKasir extends JFrame {
         }
     }
     
+    // ⭐ UPDATE: addToCart menggunakan product_detail_id
     private void addToCart() {
         int row = productTable.getSelectedRow();
         if (row == -1) {
@@ -583,10 +579,14 @@ public class DashboardKasir extends JFrame {
             return;
         }
         
-        int productId = (int) productTable.getValueAt(row, 0);
+        int productDetailId = (int) productTable.getValueAt(row, 0);  // ⭐ product_detail_id
         String productName = (String) productTable.getValueAt(row, 1);
+        String color = (String) productTable.getValueAt(row, 3);
+        String size = (String) productTable.getValueAt(row, 4);
         double price = (double) productTable.getValueAt(row, 6);
         int availableStock = (int) productTable.getValueAt(row, 5);
+        
+        String displayName = String.format("%s (%s, %s)", productName, color, size);
         
         String input = JOptionPane.showInputDialog(this, "Jumlah:", "1");
         if (input == null) return;
@@ -600,7 +600,7 @@ public class DashboardKasir extends JFrame {
             
             CartItem existingItem = null;
             for (CartItem item : cartItems) {
-                if (item.productId == productId) {
+                if (item.productDetailId == productDetailId) {  // ⭐ Check by detail_id
                     existingItem = item;
                     break;
                 }
@@ -609,7 +609,7 @@ public class DashboardKasir extends JFrame {
             if (existingItem != null) {
                 existingItem.quantity += qty;
             } else {
-                cartItems.add(new CartItem(productId, productName, price, qty));
+                cartItems.add(new CartItem(productDetailId, displayName, price, qty));  // ⭐ Save detail_id
             }
             
             updateCartDisplay();
@@ -639,7 +639,7 @@ public class DashboardKasir extends JFrame {
                 return;
             }
 
-            int availableStock = getAvailableStock(item.productId);
+            int availableStock = getAvailableStock(item.productDetailId);  // ⭐ Use detail_id
             if (newQty > availableStock) {
                 JOptionPane.showMessageDialog(this, 
                     "Stok tidak mencukupi! Tersedia: " + availableStock);
@@ -653,11 +653,12 @@ public class DashboardKasir extends JFrame {
         }
     }
 
-    private int getAvailableStock(int productId) {
+    // ⭐ UPDATE: Get stock dari product_details
+    private int getAvailableStock(int productDetailId) {
         try (Connection conn = DatabaseConfig.getConnection()) {
-            String sql = "SELECT stock FROM products WHERE id = ? AND status = 'available'";
+            String sql = "SELECT stock FROM product_details WHERE id = ? AND status = 'available'";
             PreparedStatement ps = conn.prepareStatement(sql);
-            ps.setInt(1, productId);
+            ps.setInt(1, productDetailId);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 return rs.getInt("stock");
@@ -707,6 +708,7 @@ public class DashboardKasir extends JFrame {
         updatePaymentFields();
     }
     
+    // ⭐ UPDATE: Process transaction menggunakan product_detail_id
     private void processTransaction() {
         if (cartItems.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Keranjang kosong!");
@@ -742,7 +744,6 @@ public class DashboardKasir extends JFrame {
             conn = DatabaseConfig.getConnection();
             conn.setAutoCommit(false);
             
-            // Hitung tunai & kembalian
             double tunaiValue = 0;
             double kembalianValue = 0;
             if ("cash".equals(paymentMethod)) {
@@ -753,7 +754,7 @@ public class DashboardKasir extends JFrame {
                 kembalianValue = 0;
             }
             
-            // Insert transaction (dengan cash_received & change_given)
+            // Insert transaction
             transCode = FormatterUtils.generateTransactionCode();
             String sqlTrans = "INSERT INTO transactions (user_id, transaction_code, total, " +
                              "payment_method, transaction_status, cash_received, change_given, created_at) " +
@@ -763,8 +764,8 @@ public class DashboardKasir extends JFrame {
             psTrans.setString(2, transCode);
             psTrans.setDouble(3, total);
             psTrans.setString(4, paymentMethod);
-            psTrans.setDouble(5, tunaiValue);      // cash_received
-            psTrans.setDouble(6, kembalianValue);  // change_given
+            psTrans.setDouble(5, tunaiValue);
+            psTrans.setDouble(6, kembalianValue);
             psTrans.executeUpdate();
             
             ResultSet rs = psTrans.getGeneratedKeys();
@@ -772,30 +773,30 @@ public class DashboardKasir extends JFrame {
                 transId = rs.getInt(1);
             }
             
-            // Insert details and update stock
-            String sqlDetail = "INSERT INTO transaction_details (transaction_id, product_id, " +
+            // ⭐ UPDATE: Insert details menggunakan product_detail_id
+            String sqlDetail = "INSERT INTO transaction_details (transaction_id, product_detail_id, " +
                               "quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)";
             PreparedStatement psDetail = conn.prepareStatement(sqlDetail);
             
-            String sqlUpdateStock = "UPDATE products SET stock = stock - ? WHERE id = ?";
+            // ⭐ UPDATE: Update stock di product_details (bukan products)
+            String sqlUpdateStock = "UPDATE product_details SET stock = stock - ? WHERE id = ?";
             PreparedStatement psStock = conn.prepareStatement(sqlUpdateStock);
             
             for (CartItem item : cartItems) {
                 psDetail.setInt(1, transId);
-                psDetail.setInt(2, item.productId);
+                psDetail.setInt(2, item.productDetailId);  // ⭐ product_detail_id
                 psDetail.setInt(3, item.quantity);
                 psDetail.setDouble(4, item.price);
                 psDetail.setDouble(5, item.price * item.quantity);
                 psDetail.executeUpdate();
                 
                 psStock.setInt(1, item.quantity);
-                psStock.setInt(2, item.productId);
+                psStock.setInt(2, item.productDetailId);  // ⭐ product_detail_id
                 psStock.executeUpdate();
             }
             
             conn.commit();
             
-            // ✅ Tampilkan struk (ambil data dari DB)
             showReceipt(transId, transCode);
             
             clearCart();
@@ -814,6 +815,7 @@ public class DashboardKasir extends JFrame {
         }
     }
 
+    // ⭐ UPDATE: Receipt dengan product_detail join
     private void showReceipt(int transId, String transCode) {
         StringBuilder receipt = new StringBuilder();
         Connection conn = null;
@@ -852,9 +854,14 @@ public class DashboardKasir extends JFrame {
             receipt.append("No.    : ").append(transCode).append("\n");
             receipt.append("─".repeat(50)).append("\n\n");
 
-            String sql2 = "SELECT p.name, td.quantity, td.unit_price, td.subtotal " +
+            // ⭐ UPDATE: Query dengan product_detail join
+            String sql2 = "SELECT p.name, c.name as color, s.name as size, " +
+                         "td.quantity, td.unit_price, td.subtotal " +
                          "FROM transaction_details td " +
-                         "JOIN products p ON td.product_id = p.id " +
+                         "JOIN product_details pd ON td.product_detail_id = pd.id " +
+                         "JOIN products p ON pd.product_id = p.id " +
+                         "JOIN colors c ON pd.color_id = c.id " +
+                         "JOIN sizes s ON pd.size_id = s.id " +
                          "WHERE td.transaction_id = ?";
             
             PreparedStatement ps2 = conn.prepareStatement(sql2);
@@ -863,11 +870,13 @@ public class DashboardKasir extends JFrame {
             
             while (rs2.next()) {
                 String name = rs2.getString("name");
+                String color = rs2.getString("color");
+                String size = rs2.getString("size");
                 int qty = rs2.getInt("quantity");
                 double price = rs2.getDouble("unit_price");
                 double subtotal = rs2.getDouble("subtotal");
                 
-                receipt.append(name).append("\n");
+                receipt.append(String.format("%s (%s, %s)\n", name, color, size));
                 receipt.append(String.format("  %d x %s = %s\n", 
                     qty,
                     FormatterUtils.formatCurrency(price),
@@ -932,14 +941,15 @@ public class DashboardKasir extends JFrame {
         }
     }
     
+    // ⭐ UPDATE: CartItem sekarang menggunakan product_detail_id
     private static class CartItem {
-        int productId;
+        int productDetailId;  // ⭐ Ganti dari productId ke productDetailId
         String productName;
         double price;
         int quantity;
         
-        CartItem(int productId, String productName, double price, int quantity) {
-            this.productId = productId;
+        CartItem(int productDetailId, String productName, double price, int quantity) {
+            this.productDetailId = productDetailId;
             this.productName = productName;
             this.price = price;
             this.quantity = quantity;
@@ -959,7 +969,6 @@ public class DashboardKasir extends JFrame {
         }
     }
 
-    // =================== ROUNDED CORNERS ===================
     private void updateWindowShape() {
         if (!isMaximized) {
             int arc = 20;
