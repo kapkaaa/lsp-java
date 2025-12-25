@@ -243,7 +243,8 @@ class SalesReportPanel extends JPanel {
                 "FROM transactions t " +
                 "JOIN users u ON t.user_id = u.id " +
                 "JOIN transaction_details td ON t.id = td.transaction_id " +
-                "JOIN products p ON td.product_id = p.id " +
+                "JOIN product_details pd ON td.product_detail_id = pd.id " +
+                "JOIN products p ON pd.product_id = p.id " +
                 "WHERE t.transaction_status = 'completed' " +
                 "AND DATE(t.created_at) BETWEEN ? AND ?"
             );
