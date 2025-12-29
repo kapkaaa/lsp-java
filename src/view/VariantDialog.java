@@ -8,7 +8,8 @@ import java.sql.*;
 import config.DatabaseConfig;
 import utils.SupabaseStorage;
 import java.awt.geom.RoundRectangle2D;
-
+import java.util.ArrayList;
+import java.util.List;
 
 public class VariantDialog {
     private Point mousePoint;
@@ -105,7 +106,7 @@ public class VariantDialog {
             int row = variantTable.getSelectedRow();
             if (row >= 0) {
                 int variantId = (int) variantModel.getValueAt(row, 0);
-                new EditVariantDialog(ownerFrame, variantId, productId, this).show();
+                new EditVariantDialog(ownerFrame, productId, this, variantId).show();
             } else {
                 JOptionPane.showMessageDialog(dialog, "Pilih varian yang akan diedit!");
             }
@@ -374,8 +375,6 @@ public class VariantDialog {
         return button;
     }
 
-    // ==================== INNER CLASSES ====================
-
     static class ComboItem {
         private final int id;
         private final String name;
@@ -389,12 +388,20 @@ public class VariantDialog {
     }
 }
 
-// ==================== ADD VARIANT DIALOG ====================
+// ==================== ADD VARIANT DIALOG (Revisi Menyerupai Foto) ====================
 class AddVariantDialog {
     private final Component parent;
     private final int productId;
     private final VariantDialog variantDialog;
     private JDialog dialog;
+
+    private JTextField txtColorName;
+    private JTextField txtColorCode;
+    private JLabel lblColorPreview;
+    private JTextField txtStock;
+    private JCheckBox[] sizeCheckboxes;
+
+    private static final String[] SIZES = {"XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"};
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
@@ -406,7 +413,7 @@ class AddVariantDialog {
     private void initDialog() {
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(600, 420);
+        dialog.setSize(700, 650);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
@@ -431,94 +438,224 @@ class AddVariantDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
 
-        JComboBox<VariantDialog.ComboItem> cmbColor = VariantDialog.loadComboData("colors");
-        JComboBox<VariantDialog.ComboItem> cmbSize = VariantDialog.loadComboData("sizes");
-        JTextField txtStock = VariantDialog.createStyledTextField(20);
-        txtStock.setText("0");
-        JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
-        cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cmbStatus.setBackground(Color.WHITE);
-        cmbStatus.setForeground(Color.decode("#222222"));
-
-        int row = 0;
-        VariantDialog.addFormRow(panel, gbc, row++, "Warna:", cmbColor);
-        VariantDialog.addFormRow(panel, gbc, row++, "Size:", cmbSize);
-        VariantDialog.addFormRow(panel, gbc, row++, "Stok:", txtStock);
-        VariantDialog.addFormRow(panel, gbc, row++, "Status:", cmbStatus);
-
-        gbc.gridx = 0; gbc.gridy = row++;
+        // Nama Warna
+        txtColorName = VariantDialog.createStyledTextField(25);
         gbc.gridwidth = 2;
-        JLabel lblInfo = new JLabel("<html><i>* Foto dapat ditambahkan setelah varian dibuat</i></html>");
-        lblInfo.setForeground(Color.GRAY);
-        panel.add(lblInfo, gbc);
+        gbc.gridy = 0;
+        panel.add(new JLabel("Nama Warna *"), gbc);
+        gbc.gridy = 1;
+        panel.add(txtColorName, gbc);
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        // Kode Warna + Preview
+        txtColorCode = VariantDialog.createStyledTextField(25);
+        txtColorCode.setText("#000000");
+        lblColorPreview = new JLabel();
+        lblColorPreview.setPreferredSize(new Dimension(30, 30));
+        lblColorPreview.setOpaque(true);
+        lblColorPreview.setBackground(Color.BLACK);
+
+        JPanel codePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        codePanel.setOpaque(false);
+        codePanel.add(lblColorPreview);
+        codePanel.add(txtColorCode);
+
+        gbc.gridy = 2;
+        panel.add(new JLabel("Kode Warna (Opsional)"), gbc);
+        gbc.gridy = 3;
+        panel.add(codePanel, gbc);
+
+        // Pilih Ukuran
+        gbc.gridy = 6;
+        panel.add(new JLabel("Pilih Ukuran & Stok *"), gbc);
+
+        // Grid Checkbox Ukuran
+        JPanel gridPanel = new JPanel(new GridLayout(3, 3, 10, 10));
+        gridPanel.setOpaque(false);
+        sizeCheckboxes = new JCheckBox[SIZES.length];
+        for (int i = 0; i < SIZES.length; i++) {
+            sizeCheckboxes[i] = new JCheckBox(SIZES[i]);
+            sizeCheckboxes[i].setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            sizeCheckboxes[i].setForeground(Color.decode("#222222"));
+            gridPanel.add(sizeCheckboxes[i]);
+        }
+        gbc.gridy = 7;
+        panel.add(gridPanel, gbc);
+
+        // Aksi Cepat
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        actionPanel.setOpaque(false);
+        actionPanel.add(VariantDialog.createStyledButton("Centang Semua", new Color(249, 191, 59), e -> {
+            for (JCheckBox cb : sizeCheckboxes) cb.setSelected(true);
+        }));
+        actionPanel.add(VariantDialog.createStyledButton("Hapus Centang", new Color(231, 76, 60), e -> {
+            for (JCheckBox cb : sizeCheckboxes) cb.setSelected(false);
+        }));
+        gbc.gridy = 8;
+        panel.add(actionPanel, gbc);
+
+        // Stok Umum
+        txtStock = VariantDialog.createStyledTextField(10);
+        txtStock.setText("0");
+        JPanel stockPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        stockPanel.setOpaque(false);
+        stockPanel.add(new JLabel("Stok per ukuran: "));
+        stockPanel.add(txtStock);
+        gbc.gridy = 9;
+        panel.add(stockPanel, gbc);
+
+        // Tombol Simpan
+        gbc.gridy = 10;
         gbc.anchor = GridBagConstraints.EAST;
-        gbc.fill = GridBagConstraints.NONE;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnPanel.setOpaque(false);
-
-        JButton btnSave = VariantDialog.createStyledButton("Simpan", new Color(46, 204, 113), e -> {
-            try {
-                int stock = Integer.parseInt(txtStock.getText());
-                if (stock < 0) {
-                    JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
-                    return;
-                }
-                if (saveVariant(
-                    ((VariantDialog.ComboItem) cmbColor.getSelectedItem()).getId(),
-                    ((VariantDialog.ComboItem) cmbSize.getSelectedItem()).getId(),
-                    stock,
-                    (String) cmbStatus.getSelectedItem())) {
-                    JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan!");
-                    variantDialog.loadVariants();
-                    dialog.dispose();
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
-            }
-        });
-
-        JButton btnCancel = VariantDialog.createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
-        btnPanel.add(btnSave);
-        btnPanel.add(btnCancel);
+        btnPanel.add(VariantDialog.createStyledButton("Batal", Color.GRAY, e -> dialog.dispose()));
+        btnPanel.add(VariantDialog.createStyledButton("Tambah", new Color(46, 204, 113), e -> handleSave()));
         panel.add(btnPanel, gbc);
 
         dialog.add(panel, BorderLayout.CENTER);
         VariantDialog.addWindowDrag(titleBar, dialog);
         VariantDialog.updateDialogShape(dialog);
+
+        // Listener untuk kode warna
+        txtColorCode.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            private void updatePreview() {
+                try {
+                    String hex = txtColorCode.getText().trim();
+                    if (!hex.startsWith("#")) hex = "#" + hex;
+                    Color c = Color.decode(hex);
+                    lblColorPreview.setBackground(c);
+                } catch (Exception ex) {
+                    lblColorPreview.setBackground(Color.BLACK);
+                }
+            }
+        });
     }
 
-    private boolean saveVariant(int colorId, int sizeId, int stock, String status) {
+    private void handleSave() {
+        if (txtColorName.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Nama warna wajib diisi!");
+            return;
+        }
+        boolean atLeastOne = false;
+        for (JCheckBox cb : sizeCheckboxes) if (cb.isSelected()) { atLeastOne = true; break; }
+        if (!atLeastOne) {
+            JOptionPane.showMessageDialog(dialog, "Pilih minimal satu ukuran!");
+            return;
+        }
+        try {
+            Integer.parseInt(txtStock.getText());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(dialog, "Stok harus angka!");
+            return;
+        }
+
+        saveVariants();
+    }
+
+    private void saveVariants() {
+        String colorName = txtColorName.getText().trim();
+        String colorCode = txtColorCode.getText().trim();
+        if (!colorCode.startsWith("#")) colorCode = "#" + colorCode;
+        int stock = Integer.parseInt(txtStock.getText());
+
+        int colorId = getColorIdOrCreate(colorName, colorCode);
+        if (colorId == -1) {
+            JOptionPane.showMessageDialog(dialog, "Gagal menyimpan warna.");
+            return;
+        }
+
+        List<String> failedSizes = new ArrayList<>();
+        boolean success = true;
+
         try (Connection conn = DatabaseConfig.getConnection()) {
-            try (PreparedStatement checkPs = conn.prepareStatement(
-                    "SELECT id FROM product_details WHERE product_id = ? AND color_id = ? AND size_id = ?")) {
-                checkPs.setInt(1, productId);
-                checkPs.setInt(2, colorId);
-                checkPs.setInt(3, sizeId);
-                try (ResultSet checkRs = checkPs.executeQuery()) {
-                    if (checkRs.next()) {
-                        JOptionPane.showMessageDialog(dialog, "Varian dengan warna dan size ini sudah ada!");
-                        return false;
+            for (int i = 0; i < SIZES.length; i++) {
+                if (sizeCheckboxes[i].isSelected()) {
+                    String sizeName = SIZES[i];
+                    int sizeId = getSizeIdOrCreate(sizeName);
+                    if (sizeId == -1) {
+                        failedSizes.add(sizeName);
+                        continue;
+                    }
+
+                    // Cek duplikat
+                    try (PreparedStatement check = conn.prepareStatement(
+                            "SELECT 1 FROM product_details WHERE product_id = ? AND color_id = ? AND size_id = ?")) {
+                        check.setInt(1, productId);
+                        check.setInt(2, colorId);
+                        check.setInt(3, sizeId);
+                        if (check.executeQuery().next()) {
+                            failedSizes.add(sizeName + " (duplikat)");
+                            continue;
+                        }
+                    }
+
+                    // Insert
+                    try (PreparedStatement ps = conn.prepareStatement(
+                            "INSERT INTO product_details (product_id, color_id, size_id, stock, status) VALUES (?, ?, ?, ?, ?)")) {
+                        ps.setInt(1, productId);
+                        ps.setInt(2, colorId);
+                        ps.setInt(3, sizeId);
+                        ps.setInt(4, stock);
+                        ps.setString(5, "available");
+                        ps.executeUpdate();
                     }
                 }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(dialog, "Error database: " + e.getMessage());
+            return;
+        }
 
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "INSERT INTO product_details (product_id, color_id, size_id, stock, status) VALUES (?, ?, ?, ?, ?)")) {
-                ps.setInt(1, productId);
-                ps.setInt(2, colorId);
-                ps.setInt(3, sizeId);
-                ps.setInt(4, stock);
-                ps.setString(5, status);
-                ps.executeUpdate();
-                return true;
+        if (!failedSizes.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Beberapa ukuran gagal ditambahkan:\n" + String.join(", ", failedSizes));
+        } else {
+            JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan!");
+        }
+        variantDialog.loadVariants();
+        dialog.dispose();
+    }
+
+    private int getColorIdOrCreate(String name, String code) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            try (PreparedStatement check = conn.prepareStatement("SELECT id FROM colors WHERE name = ?")) {
+                check.setString(1, name);
+                ResultSet rs = check.executeQuery();
+                if (rs.next()) return rs.getInt("id");
+            }
+            try (PreparedStatement ins = conn.prepareStatement("INSERT INTO colors (name, code) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+                ins.setString(1, name);
+                ins.setString(2, code);
+                ins.executeUpdate();
+                ResultSet rs = ins.getGeneratedKeys();
+                if (rs.next()) return rs.getInt(1);
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(dialog, "Error: " + e.getMessage());
-            return false;
         }
+        return -1;
+    }
+
+    private int getSizeIdOrCreate(String name) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            try (PreparedStatement check = conn.prepareStatement("SELECT id FROM sizes WHERE name = ?")) {
+                check.setString(1, name);
+                ResultSet rs = check.executeQuery();
+                if (rs.next()) return rs.getInt("id");
+            }
+            try (PreparedStatement ins = conn.prepareStatement("INSERT INTO sizes (name) VALUES (?)", Statement.RETURN_GENERATED_KEYS)) {
+                ins.setString(1, name);
+                ins.executeUpdate();
+                ResultSet rs = ins.getGeneratedKeys();
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 
     public void show() {
@@ -526,41 +663,54 @@ class AddVariantDialog {
     }
 }
 
-// ==================== EDIT VARIANT DIALOG ====================
+// ==================== EDIT VARIANT DIALOG (Revisi) ====================
 class EditVariantDialog {
     private final Component parent;
-    private final int variantId;
     private final int productId;
     private final VariantDialog variantDialog;
+    private final int variantId;
     private JDialog dialog;
 
-    public EditVariantDialog(Component parent, int variantId, int productId, VariantDialog variantDialog) {
+    private JTextField txtColorName;
+    private JTextField txtColorCode;
+    private JLabel lblColorPreview;
+    private JTextField txtStock;
+    private JComboBox<String> cmbStatus;
+    private JTextField txtSizeName;
+
+    public EditVariantDialog(Component parent, int productId, VariantDialog variantDialog, int variantId) {
         this.parent = parent;
-        this.variantId = variantId;
         this.productId = productId;
         this.variantDialog = variantDialog;
+        this.variantId = variantId;
         initDialog();
     }
 
     private void initDialog() {
+        // Ambil data varian
+        String colorName = "", colorCode = "#000000", sizeName = "";
         int stock = 0;
-        int colorId = 0;
-        int sizeId = 0;
-        String status = null;
+        String status = "available";
 
         try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT * FROM product_details WHERE id = ?")) {
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT c.name as color_name, c.code as color_code, s.name as size_name, pd.stock, pd.status " +
+                 "FROM product_details pd " +
+                 "JOIN colors c ON pd.color_id = c.id " +
+                 "JOIN sizes s ON pd.size_id = s.id " +
+                 "WHERE pd.id = ?")) {
             ps.setInt(1, variantId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    stock = rs.getInt("stock");
-                    colorId = rs.getInt("color_id");
-                    sizeId = rs.getInt("size_id");
-                    status = rs.getString("status");
-                } else {
-                    JOptionPane.showMessageDialog(parent, "Varian tidak ditemukan!");
-                    return;
-                }
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                colorName = rs.getString("color_name");
+                colorCode = rs.getString("color_code");
+                if (colorCode == null) colorCode = "#000000";
+                sizeName = rs.getString("size_name");
+                stock = rs.getInt("stock");
+                status = rs.getString("status");
+            } else {
+                JOptionPane.showMessageDialog(parent, "Varian tidak ditemukan!");
+                return;
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -569,7 +719,7 @@ class EditVariantDialog {
 
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Edit Varian", true);
         dialog.setUndecorated(true);
-        dialog.setSize(500, 350);
+        dialog.setSize(600, 450);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
@@ -594,88 +744,153 @@ class EditVariantDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
 
-        JComboBox<VariantDialog.ComboItem> cmbColor = VariantDialog.loadComboData("colors");
-        JComboBox<VariantDialog.ComboItem> cmbSize = VariantDialog.loadComboData("sizes");
-        JTextField txtStock = VariantDialog.createStyledTextField(20);
+        txtColorName = VariantDialog.createStyledTextField(25);
+        txtColorName.setText(colorName);
+        txtColorCode = VariantDialog.createStyledTextField(25);
+        txtColorCode.setText(colorCode);
+        lblColorPreview = new JLabel();
+        lblColorPreview.setPreferredSize(new Dimension(30, 30));
+        lblColorPreview.setOpaque(true);
+        try {
+            lblColorPreview.setBackground(Color.decode(colorCode));
+        } catch (Exception ex) {
+            lblColorPreview.setBackground(Color.BLACK);
+        }
+
+        txtSizeName = VariantDialog.createStyledTextField(25);
+        txtSizeName.setText(sizeName);
+        txtSizeName.setEditable(false); // ukuran tidak bisa diubah
+
+        txtStock = VariantDialog.createStyledTextField(25);
         txtStock.setText(String.valueOf(stock));
 
-        JComboBox<String> cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
-        cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbStatus = new JComboBox<>(new String[]{"available", "out_of_stock", "discontinued"});
         cmbStatus.setSelectedItem(status);
-
-        // Pre-select color & size
-        for (int i = 0; i < cmbColor.getItemCount(); i++) {
-            if (cmbColor.getItemAt(i).getId() == colorId) {
-                cmbColor.setSelectedIndex(i);
-                break;
-            }
-        }
-        for (int i = 0; i < cmbSize.getItemCount(); i++) {
-            if (cmbSize.getItemAt(i).getId() == sizeId) {
-                cmbSize.setSelectedIndex(i);
-                break;
-            }
-        }
+        cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         int row = 0;
-        VariantDialog.addFormRow(panel, gbc, row++, "Warna:", cmbColor);
-        VariantDialog.addFormRow(panel, gbc, row++, "Size:", cmbSize);
-        VariantDialog.addFormRow(panel, gbc, row++, "Stok:", txtStock);
-        VariantDialog.addFormRow(panel, gbc, row++, "Status:", cmbStatus);
+        panel.add(createLabel("Nama Warna *"), createGbc(gbc, 0, row));
+        panel.add(txtColorName, createGbc(gbc, 1, row++));
+        panel.add(createLabel("Kode Warna"), createGbc(gbc, 0, row));
+        JPanel codePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        codePanel.setOpaque(false);
+        codePanel.add(lblColorPreview);
+        codePanel.add(txtColorCode);
+        panel.add(codePanel, createGbc(gbc, 1, row++));
+        panel.add(createLabel("Ukuran"), createGbc(gbc, 0, row));
+        panel.add(txtSizeName, createGbc(gbc, 1, row++));
+        panel.add(createLabel("Stok *"), createGbc(gbc, 0, row));
+        panel.add(txtStock, createGbc(gbc, 1, row++));
+        panel.add(createLabel("Status"), createGbc(gbc, 0, row));
+        panel.add(cmbStatus, createGbc(gbc, 1, row++));
 
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 2;
+        // Tombol
+        gbc.gridy = row;
+        gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.EAST;
-        gbc.fill = GridBagConstraints.NONE;
-        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnPanel.setOpaque(false);
-
-        JButton btnUpdate = VariantDialog.createStyledButton("Update", new Color(52, 152, 219), e -> {
-            try {
-                int newStock = Integer.parseInt(txtStock.getText());
-                if (newStock < 0) {
-                    JOptionPane.showMessageDialog(dialog, "Stok tidak boleh negatif!");
-                    return;
-                }
-                if (updateVariant(
-                    ((VariantDialog.ComboItem) cmbColor.getSelectedItem()).getId(),
-                    ((VariantDialog.ComboItem) cmbSize.getSelectedItem()).getId(),
-                    newStock,
-                    (String) cmbStatus.getSelectedItem())) {
-                    JOptionPane.showMessageDialog(dialog, "Varian berhasil diupdate!");
-                    variantDialog.loadVariants();
-                    dialog.dispose();
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
-            }
-        });
-
-        JButton btnCancel = VariantDialog.createStyledButton("Batal", Color.GRAY, e -> dialog.dispose());
-        btnPanel.add(btnUpdate);
-        btnPanel.add(btnCancel);
+        btnPanel.add(VariantDialog.createStyledButton("Batal", Color.GRAY, e -> dialog.dispose()));
+        btnPanel.add(VariantDialog.createStyledButton("Simpan", new Color(52, 152, 219), e -> handleUpdate()));
         panel.add(btnPanel, gbc);
 
         dialog.add(panel, BorderLayout.CENTER);
         VariantDialog.addWindowDrag(titleBar, dialog);
         VariantDialog.updateDialogShape(dialog);
+
+        txtColorCode.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { updatePreview(); }
+            private void updatePreview() {
+                try {
+                    String hex = txtColorCode.getText().trim();
+                    if (!hex.startsWith("#")) hex = "#" + hex;
+                    Color c = Color.decode(hex);
+                    lblColorPreview.setBackground(c);
+                } catch (Exception ex) {
+                    lblColorPreview.setBackground(Color.BLACK);
+                }
+            }
+        });
+    }
+    
+    private JLabel createLabel(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        return label;
     }
 
-    private boolean updateVariant(int colorId, int sizeId, int stock, String status) {
+    private GridBagConstraints createGbc(GridBagConstraints gbc, int x, int y) {
+        gbc.gridx = x;
+        gbc.gridy = y;
+        gbc.gridwidth = 1;
+        return gbc;
+    }
+
+    private void handleUpdate() {
+        if (txtColorName.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Nama warna wajib diisi!");
+            return;
+        }
+        try {
+            Integer.parseInt(txtStock.getText());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(dialog, "Stok harus angka!");
+            return;
+        }
+
+        updateVariant();
+    }
+
+    private void updateVariant() {
+        String colorName = txtColorName.getText().trim();
+        String colorCode = txtColorCode.getText().trim();
+        if (!colorCode.startsWith("#")) colorCode = "#" + colorCode;
+        int stock = Integer.parseInt(txtStock.getText());
+        String status = (String) cmbStatus.getSelectedItem();
+
+        int colorId = getColorIdOrCreate(colorName, colorCode);
+        if (colorId == -1) {
+            JOptionPane.showMessageDialog(dialog, "Gagal memperbarui warna.");
+            return;
+        }
+
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                "UPDATE product_details SET color_id = ?, size_id = ?, stock = ?, status = ? WHERE id = ?")) {
+                 "UPDATE product_details SET color_id = ?, stock = ?, status = ? WHERE id = ?")) {
             ps.setInt(1, colorId);
-            ps.setInt(2, sizeId);
-            ps.setInt(3, stock);
-            ps.setString(4, status);
-            ps.setInt(5, variantId);
+            ps.setInt(2, stock);
+            ps.setString(3, status);
+            ps.setInt(4, variantId);
             ps.executeUpdate();
-            return true;
+            JOptionPane.showMessageDialog(dialog, "Varian berhasil diperbarui!");
+            variantDialog.loadVariants();
+            dialog.dispose();
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(dialog, "Error: " + e.getMessage());
-            return false;
         }
+    }
+
+    private int getColorIdOrCreate(String name, String code) {
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            try (PreparedStatement check = conn.prepareStatement("SELECT id FROM colors WHERE name = ?")) {
+                check.setString(1, name);
+                ResultSet rs = check.executeQuery();
+                if (rs.next()) return rs.getInt("id");
+            }
+            try (PreparedStatement ins = conn.prepareStatement("INSERT INTO colors (name, code) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+                ins.setString(1, name);
+                ins.setString(2, code);
+                ins.executeUpdate();
+                ResultSet rs = ins.getGeneratedKeys();
+                if (rs.next()) return rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
     }
 
     public void show() {
