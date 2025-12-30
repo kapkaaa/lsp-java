@@ -84,7 +84,7 @@ public class VariantDialog {
 
     private JPanel createSearchPanel() {
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        searchPanel.setBackground(Color.WHITE);
+        searchPanel.setOpaque(false);
 
         JLabel lblSearch = new JLabel("Cari:");
         lblSearch.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -449,7 +449,7 @@ class AddVariantDialog {
     private void initDialog() {
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(550, 550);
+        dialog.setSize(500, 500);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
