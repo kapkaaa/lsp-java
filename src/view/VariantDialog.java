@@ -2,6 +2,7 @@ package view;
 
 import javax.swing.*;
 import javax.swing.table.*;
+import javax.swing.event.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
@@ -10,6 +11,8 @@ import utils.SupabaseStorage;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
+import java.io.File;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class VariantDialog {
     private Point mousePoint;
@@ -19,6 +22,7 @@ public class VariantDialog {
     private JTable variantTable;
     private Frame ownerFrame;
     private ProductManagementPanel mainPanel;
+    private JTextField searchField;
 
     public VariantDialog(Frame ownerFrame, ProductManagementPanel mainPanel, int productId) {
         this.ownerFrame = ownerFrame;
@@ -43,6 +47,9 @@ public class VariantDialog {
         // Info Panel
         JPanel infoPanel = createInfoPanel();
 
+        // Search Panel
+        JPanel searchPanel = createSearchPanel();
+
         // Variant Table
         String[] columns = {"ID", "Warna", "Size", "Stok", "Status", "Foto"};
         variantModel = new DefaultTableModel(columns, 0) {
@@ -61,13 +68,61 @@ public class VariantDialog {
         // Button Panel
         JPanel buttonPanel = createButtonPanel();
 
-        mainPanel.add(infoPanel, BorderLayout.NORTH);
+        // Top Panel (Info + Search)
+        JPanel topPanel = new JPanel(new BorderLayout(10, 10));
+        topPanel.add(infoPanel, BorderLayout.NORTH);
+        topPanel.add(searchPanel, BorderLayout.CENTER);
+
+        mainPanel.add(topPanel, BorderLayout.NORTH);
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         mainPanel.add(buttonPanel, BorderLayout.SOUTH);
         dialog.add(mainPanel, BorderLayout.CENTER);
 
         addWindowDrag(titleBar, dialog);
         updateDialogShape(dialog);
+    }
+
+    private JPanel createSearchPanel() {
+        JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        searchPanel.setBackground(Color.WHITE);
+
+        JLabel lblSearch = new JLabel("Cari:");
+        lblSearch.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+
+        searchField = createStyledTextField(20);
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                filterTable();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                filterTable();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                filterTable();
+            }
+        });
+
+        searchPanel.add(lblSearch);
+        searchPanel.add(searchField);
+
+        return searchPanel;
+    }
+
+    private void filterTable() {
+        String searchText = searchField.getText().toLowerCase().trim();
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(variantModel);
+        variantTable.setRowSorter(sorter);
+
+        if (searchText.isEmpty()) {
+            sorter.setRowFilter(null);
+        } else {
+            sorter.setRowFilter(RowFilter.regexFilter("(?i)" + searchText));
+        }
     }
 
     private JPanel createInfoPanel() {
@@ -105,7 +160,8 @@ public class VariantDialog {
         JButton btnEditVariant = createStyledButton("Edit Varian", new Color(52, 152, 219), e -> {
             int row = variantTable.getSelectedRow();
             if (row >= 0) {
-                int variantId = (int) variantModel.getValueAt(row, 0);
+                int modelRow = variantTable.convertRowIndexToModel(row);
+                int variantId = (int) variantModel.getValueAt(modelRow, 0);
                 new EditVariantDialog(ownerFrame, productId, this, variantId).show();
             } else {
                 JOptionPane.showMessageDialog(dialog, "Pilih varian yang akan diedit!");
@@ -115,7 +171,8 @@ public class VariantDialog {
         JButton btnDeleteVariant = createStyledButton("Hapus Varian", new Color(231, 76, 60), e -> {
             int row = variantTable.getSelectedRow();
             if (row >= 0) {
-                int variantId = (int) variantModel.getValueAt(row, 0);
+                int modelRow = variantTable.convertRowIndexToModel(row);
+                int variantId = (int) variantModel.getValueAt(modelRow, 0);
                 deleteVariant(variantId);
             } else {
                 JOptionPane.showMessageDialog(dialog, "Pilih varian yang akan dihapus!");
@@ -125,7 +182,8 @@ public class VariantDialog {
         JButton btnManagePhotos = createStyledButton("Kelola Foto", new Color(155, 89, 182), e -> {
             int row = variantTable.getSelectedRow();
             if (row >= 0) {
-                int variantId = (int) variantModel.getValueAt(row, 0);
+                int modelRow = variantTable.convertRowIndexToModel(row);
+                int variantId = (int) variantModel.getValueAt(modelRow, 0);
                 new PhotoDialog(ownerFrame, variantId).show();
             } else {
                 JOptionPane.showMessageDialog(dialog, "Pilih varian terlebih dahulu!");
@@ -375,20 +433,23 @@ class AddVariantDialog {
 
     private JTextField txtColorName;
     private JTextField[] stockFields;
+    private List<File> selectedPhotos;
+    private JLabel photoCountLabel;
 
-    private static final String[] SIZES = {"XS  ", "S   ", "M  ", "L   ", "XL ", "2XL", "3XL", "4XL", "5XL"};
+    private static final String[] SIZES = {"XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"};
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
         this.productId = productId;
         this.variantDialog = variantDialog;
+        this.selectedPhotos = new ArrayList<>();
         initDialog();
     }
 
     private void initDialog() {
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(500, 450);
+        dialog.setSize(550, 550);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
@@ -460,8 +521,27 @@ class AddVariantDialog {
         gbc.gridy = 3;
         panel.add(sizeStockPanel, gbc);
 
-        // Tombol
+        // Upload Foto Section
+        JLabel photoLabel = new JLabel("Foto Produk (Opsional)");
+        photoLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 4;
+        panel.add(photoLabel, gbc);
+
+        JPanel photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        photoPanel.setOpaque(false);
+
+        JButton btnSelectPhoto = VariantDialog.createStyledButton("Pilih Foto", new Color(52, 152, 219), e -> selectPhotos());
+        photoCountLabel = new JLabel("Belum ada foto");
+        photoCountLabel.setFont(new Font("Segoe UI", Font.ITALIC, 12));
+
+        photoPanel.add(btnSelectPhoto);
+        photoPanel.add(photoCountLabel);
+
+        gbc.gridy = 5;
+        panel.add(photoPanel, gbc);
+
+        // Tombol
+        gbc.gridy = 6;
         gbc.anchor = GridBagConstraints.EAST;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnPanel.setOpaque(false);
@@ -472,6 +552,30 @@ class AddVariantDialog {
         dialog.add(panel, BorderLayout.CENTER);
         VariantDialog.addWindowDrag(titleBar, dialog);
         VariantDialog.updateDialogShape(dialog);
+    }
+
+    private void selectPhotos() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setMultiSelectionEnabled(true);
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Image Files", "jpg", "jpeg", "png"));
+
+        int result = fileChooser.showOpenDialog(dialog);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File[] files = fileChooser.getSelectedFiles();
+            selectedPhotos.clear();
+            for (File file : files) {
+                selectedPhotos.add(file);
+            }
+            updatePhotoCount();
+        }
+    }
+
+    private void updatePhotoCount() {
+        if (selectedPhotos.isEmpty()) {
+            photoCountLabel.setText("Belum ada foto");
+        } else {
+            photoCountLabel.setText(selectedPhotos.size() + " foto dipilih");
+        }
     }
 
     private void handleSave() {
@@ -507,6 +611,7 @@ class AddVariantDialog {
 
         List<String> failedSizes = new ArrayList<>();
         boolean anySuccess = false;
+        List<Integer> savedVariantIds = new ArrayList<>();
 
         try (Connection conn = DatabaseConfig.getConnection()) {
             int colorId = getColorIdOrCreate(conn, colorName);
@@ -549,15 +654,26 @@ class AddVariantDialog {
 
                 // Insert
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO product_details (product_id, color_id, size_id, stock, status) VALUES (?, ?, ?, ?, ?)")) {
+                        "INSERT INTO product_details (product_id, color_id, size_id, stock, status) VALUES (?, ?, ?, ?, ?)",
+                        Statement.RETURN_GENERATED_KEYS)) {
                     ps.setInt(1, productId);
                     ps.setInt(2, colorId);
                     ps.setInt(3, sizeId);
                     ps.setInt(4, stock);
                     ps.setString(5, "available");
                     ps.executeUpdate();
+                    
+                    ResultSet rs = ps.getGeneratedKeys();
+                    if (rs.next()) {
+                        savedVariantIds.add(rs.getInt(1));
+                    }
                     anySuccess = true;
                 }
+            }
+
+            // Upload foto untuk semua varian yang berhasil disimpan
+            if (anySuccess && !selectedPhotos.isEmpty()) {
+                uploadPhotosForVariants(conn, savedVariantIds);
             }
 
             if (anySuccess && failedSizes.isEmpty()) {
@@ -574,6 +690,26 @@ class AddVariantDialog {
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(dialog, "Error database: " + e.getMessage());
+        }
+    }
+
+    private void uploadPhotosForVariants(Connection conn, List<Integer> variantIds) {
+        for (Integer variantId : variantIds) {
+            for (File photo : selectedPhotos) {
+                try {
+                    String photoUrl = SupabaseStorage.uploadProductPhoto(productId, photo);
+                    if (photoUrl != null) {
+                        try (PreparedStatement ps = conn.prepareStatement(
+                                "INSERT INTO product_photos (product_detail_id, photo_url) VALUES (?, ?)")) {
+                            ps.setInt(1, variantId);
+                            ps.setString(2, photoUrl);
+                            ps.executeUpdate();
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
