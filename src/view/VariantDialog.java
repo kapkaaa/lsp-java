@@ -436,7 +436,7 @@ class AddVariantDialog {
     private List<File> selectedPhotos;
     private JLabel photoCountLabel;
 
-    private static final String[] SIZES = {"XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"};
+    private static final String[] SIZES = {"XS  ", "S   ", "M  ", "L    ", "XL ", "2XL", "3XL", "4XL", "5XL"};
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
