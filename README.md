@@ -1,5 +1,4 @@
 # DistroZone-Java
-[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/kapkaaa/lsp-java)
 
 DistroZone is a desktop Point of Sale (POS) and inventory management application designed for clothing stores. Built with Java Swing, it offers a dual-role system for administrators and cashiers, featuring a modern, custom-styled user interface.
 
