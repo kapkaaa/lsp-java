@@ -165,6 +165,11 @@ public class PhotoDialog {
 
     private void addVariantPhotos() {
         JFileChooser fileChooser = new JFileChooser();
+        
+        String userHome = System.getProperty("user.home");
+        File picturesFolder = new File(userHome, "Pictures");
+        fileChooser.setCurrentDirectory(picturesFolder);
+        
         fileChooser.setMultiSelectionEnabled(true);
         fileChooser.setFileFilter(new javax.swing.filechooser.FileFilter() {
             public boolean accept(File f) {
