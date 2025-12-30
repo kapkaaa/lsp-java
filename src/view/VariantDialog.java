@@ -557,6 +557,11 @@ class AddVariantDialog {
     private void selectPhotos() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setMultiSelectionEnabled(true);
+        
+        String userHome = System.getProperty("user.home");
+        File picturesFolder = new File(userHome, "Pictures");
+        fileChooser.setCurrentDirectory(picturesFolder);
+        
         fileChooser.setFileFilter(new FileNameExtensionFilter("Image Files", "jpg", "jpeg", "png"));
 
         int result = fileChooser.showOpenDialog(dialog);
