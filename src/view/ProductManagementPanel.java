@@ -14,7 +14,6 @@ public class ProductManagementPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTable table;
     private JTextField txtSearch;
-    private JComboBox<String> cmbStatusFilter;
 
     public ProductManagementPanel() {
         initComponents();
@@ -41,14 +40,6 @@ public class ProductManagementPanel extends JPanel {
             }
         });
         filterPanel.add(txtSearch);
-
-        filterPanel.add(new JLabel("Status:"));
-        cmbStatusFilter = new JComboBox<>(new String[]{"Semua", "available", "out_of_stock", "discontinued"});
-        cmbStatusFilter.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        cmbStatusFilter.setBackground(Color.WHITE);
-        cmbStatusFilter.setForeground(Color.decode("#222222"));
-        cmbStatusFilter.addActionListener(e -> loadData());
-        filterPanel.add(cmbStatusFilter);
 
         String[] columns = {"ID", "Nama Produk", "Merek", "Tipe", "Harga Beli", "Harga Jual", "Total Varian"};
         tableModel = new DefaultTableModel(columns, 0) {
@@ -227,7 +218,6 @@ public class ProductManagementPanel extends JPanel {
 
     public void loadData() {
         tableModel.setRowCount(0);
-        String statusFilter = (String) cmbStatusFilter.getSelectedItem();
         StringBuilder sql = new StringBuilder(
             "SELECT p.id, p.name, b.name as brand, t.name as type, " +
             "p.cost_price, p.selling_price, " +
@@ -238,19 +228,12 @@ public class ProductManagementPanel extends JPanel {
             "LEFT JOIN product_details pd ON p.id = pd.product_id "
         );
 
-        if (!"Semua".equals(statusFilter)) {
-            sql.append("WHERE p.status = ? ");
-        }
-
         sql.append("GROUP BY p.id, p.name, b.name, t.name, p.cost_price, p.selling_price " +
                    "ORDER BY p.name");
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
-            
-            if (!"Semua".equals(statusFilter)) {
-                stmt.setString(1, statusFilter);
-            }
+
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
