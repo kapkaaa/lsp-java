@@ -139,8 +139,6 @@ public class DashboardAdmin extends JFrame {
         sidebarPanel.add(createMenuButton("👥 Kelola Karyawan", e -> showUserManagement()));
         sidebarPanel.add(createMenuButton("🏷️ Kelola Merek", e -> showBrandManagement()));
         sidebarPanel.add(createMenuButton("📦 Kelola Tipe Produk", e -> showTypeManagement()));
-        sidebarPanel.add(createMenuButton("📏 Kelola Ukuran", e -> showSizeManagement()));
-        sidebarPanel.add(createMenuButton("🎨 Kelola Warna", e -> showColorManagement()));
         sidebarPanel.add(Box.createRigidArea(new Dimension(0, 10)));
 
         sidebarPanel.add(createMenuLabel("PRODUK"));
@@ -342,20 +340,6 @@ public class DashboardAdmin extends JFrame {
     private void showTypeManagement() {
         contentPanel.removeAll();
         contentPanel.add(new TypeManagementPanel(), BorderLayout.CENTER);
-        contentPanel.revalidate();
-        contentPanel.repaint();
-    }
-
-    private void showSizeManagement() {
-        contentPanel.removeAll();
-        contentPanel.add(new SizeManagementPanel(), BorderLayout.CENTER);
-        contentPanel.revalidate();
-        contentPanel.repaint();
-    }
-
-    private void showColorManagement() {
-        contentPanel.removeAll();
-        contentPanel.add(new ColorManagementPanel(), BorderLayout.CENTER);
         contentPanel.revalidate();
         contentPanel.repaint();
     }
