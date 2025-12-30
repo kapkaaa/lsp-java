@@ -388,7 +388,7 @@ class AddVariantDialog {
     private void initDialog() {
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(700, 600);
+        dialog.setSize(500, 450);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
