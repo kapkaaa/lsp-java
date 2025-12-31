@@ -13,6 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;
 
 public class VariantDialog {
     private Point mousePoint;
@@ -34,7 +37,7 @@ public class VariantDialog {
     public void initDialog() {
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(ownerFrame), "Kelola Varian Produk", true);
         dialog.setUndecorated(true);
-        dialog.setSize(1000, 600);
+        dialog.setSize(1100, 600);
         dialog.setLocationRelativeTo(ownerFrame);
         dialog.setLayout(new BorderLayout());
 
@@ -51,7 +54,7 @@ public class VariantDialog {
         JPanel searchPanel = createSearchPanel();
 
         // Variant Table
-        String[] columns = {"ID", "Warna", "Size", "Stok", "Status", "Foto"};
+        String[] columns = {"ID", "Barcode", "Warna", "Size", "Stok", "Status", "Foto", "Dibuat"};
         variantModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -62,6 +65,17 @@ public class VariantDialog {
         variantTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         variantTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         variantTable.setRowHeight(30);
+        
+        // Set column widths
+        variantTable.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
+        variantTable.getColumnModel().getColumn(1).setPreferredWidth(120); // Barcode
+        variantTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Warna
+        variantTable.getColumnModel().getColumn(3).setPreferredWidth(60);  // Size
+        variantTable.getColumnModel().getColumn(4).setPreferredWidth(60);  // Stok
+        variantTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Status
+        variantTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Foto
+        variantTable.getColumnModel().getColumn(7).setPreferredWidth(150); // Dibuat
+        
         JScrollPane scrollPane = new JScrollPane(variantTable);
         loadVariants();
 
@@ -203,27 +217,35 @@ public class VariantDialog {
 
     public void loadVariants() {
         variantModel.setRowCount(0);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                "SELECT pd.id, c.name as color, s.name as size, pd.stock, pd.status, " +
-                "COUNT(pp.id) as photo_count " +
+                "SELECT pd.id, pd.barcode, c.name as color, s.name as size, pd.stock, pd.status, " +
+                "COUNT(pp.id) as photo_count, pd.created_at " +
                 "FROM product_details pd " +
                 "JOIN colors c ON pd.color_id = c.id " +
                 "JOIN sizes s ON pd.size_id = s.id " +
                 "LEFT JOIN product_photos pp ON pd.id = pp.product_detail_id " +
                 "WHERE pd.product_id = ? " +
-                "GROUP BY pd.id, c.name, s.name, pd.stock, pd.status " +
-                "ORDER BY c.name, s.name")) {
+                "GROUP BY pd.id, pd.barcode, c.name, s.name, pd.stock, pd.status, pd.created_at " +
+                "ORDER BY pd.created_at DESC, c.name, s.name")) {
             ps.setInt(1, productId);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
+                    Timestamp createdAt = rs.getTimestamp("created_at");
+                    String formattedDate = createdAt != null ? 
+                        createdAt.toLocalDateTime().format(formatter) : "-";
+                    
                     Object[] row = {
                         rs.getInt("id"),
+                        rs.getString("barcode"),
                         rs.getString("color"),
                         rs.getString("size"),
                         rs.getInt("stock"),
                         rs.getString("status"),
-                        rs.getInt("photo_count") + " foto"
+                        rs.getInt("photo_count") + " foto",
+                        formattedDate
                     };
                     variantModel.addRow(row);
                 }
@@ -273,6 +295,43 @@ public class VariantDialog {
 
     public void show() {
         dialog.setVisible(true);
+    }
+
+    // ==================== BARCODE GENERATOR ====================
+    protected static String generateEAN13Barcode(Connection conn) throws SQLException {
+        Random random = new Random();
+        String barcode;
+        int attempts = 0;
+        
+        do {
+            // Generate 12 digit random number
+            long number = (long)(random.nextDouble() * 1_000_000_000_000L);
+            String code12 = String.format("%012d", number);
+            
+            // Calculate check digit using EAN-13 algorithm
+            int sum = 0;
+            for (int i = 0; i < 12; i++) {
+                int digit = Character.getNumericValue(code12.charAt(i));
+                sum += (i % 2 == 0) ? digit : digit * 3;
+            }
+            int checkDigit = (10 - (sum % 10)) % 10;
+            
+            barcode = code12 + checkDigit;
+            
+            // Check if barcode already exists
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM product_details WHERE barcode = ?")) {
+                ps.setString(1, barcode);
+                ResultSet rs = ps.executeQuery();
+                if (rs.next() && rs.getInt(1) == 0) {
+                    return barcode; // Unique barcode found
+                }
+            }
+            
+            attempts++;
+        } while (attempts < 100); // Prevent infinite loop
+        
+        throw new SQLException("Gagal generate barcode unik setelah 100 percobaan");
     }
 
     // ==================== Shared UI Utilities ====================
@@ -436,7 +495,7 @@ class AddVariantDialog {
     private List<File> selectedPhotos;
     private JLabel photoCountLabel;
 
-    private static final String[] SIZES = {"XS  ", "S   ", "M  ", "L    ", "XL ", "2XL", "3XL", "4XL", "5XL"};
+    private static final String[] SIZES = {"XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"};
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
@@ -482,7 +541,7 @@ class AddVariantDialog {
         panel.add(txtColorName, gbc);
 
         // Stok per Ukuran *
-        JLabel stockLabel = new JLabel("Stok per Ukuran *");
+        JLabel stockLabel = new JLabel("Stok per Ukuran * (Barcode akan di-generate otomatis)");
         stockLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 2;
         panel.add(stockLabel, gbc);
@@ -657,15 +716,19 @@ class AddVariantDialog {
                     }
                 }
 
-                // Insert
+                // Generate barcode
+                String barcode = VariantDialog.generateEAN13Barcode(conn);
+
+                // Insert with barcode and timestamps
                 try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO product_details (product_id, color_id, size_id, stock, status) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO product_details (product_id, color_id, size_id, stock, status, barcode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
                         Statement.RETURN_GENERATED_KEYS)) {
                     ps.setInt(1, productId);
                     ps.setInt(2, colorId);
                     ps.setInt(3, sizeId);
                     ps.setInt(4, stock);
                     ps.setString(5, "available");
+                    ps.setString(6, barcode);
                     ps.executeUpdate();
                     
                     ResultSet rs = ps.getGeneratedKeys();
@@ -682,7 +745,7 @@ class AddVariantDialog {
             }
 
             if (anySuccess && failedSizes.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan!");
+                JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan dengan barcode otomatis!");
             } else if (!anySuccess) {
                 JOptionPane.showMessageDialog(dialog, "Tidak ada varian yang berhasil disimpan.");
             } else {
@@ -773,6 +836,7 @@ class EditVariantDialog {
     private JTextField txtStock;
     private JComboBox<String> cmbStatus;
     private JTextField txtSizeName;
+    private JTextField txtBarcode;
 
     public EditVariantDialog(Component parent, int productId, VariantDialog variantDialog, int variantId) {
         this.parent = parent;
@@ -783,13 +847,13 @@ class EditVariantDialog {
     }
 
     private void initDialog() {
-        String colorName = "", sizeName = "";
+        String colorName = "", sizeName = "", barcode = "";
         int stock = 0;
         String status = "available";
 
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                 "SELECT c.name as color_name, s.name as size_name, pd.stock, pd.status " +
+                 "SELECT c.name as color_name, s.name as size_name, pd.stock, pd.status, pd.barcode " +
                  "FROM product_details pd " +
                  "JOIN colors c ON pd.color_id = c.id " +
                  "JOIN sizes s ON pd.size_id = s.id " +
@@ -801,6 +865,7 @@ class EditVariantDialog {
                 sizeName = rs.getString("size_name");
                 stock = rs.getInt("stock");
                 status = rs.getString("status");
+                barcode = rs.getString("barcode");
             } else {
                 JOptionPane.showMessageDialog(parent, "Varian tidak ditemukan!");
                 return;
@@ -812,7 +877,7 @@ class EditVariantDialog {
 
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Edit Varian", true);
         dialog.setUndecorated(true);
-        dialog.setSize(600, 450);
+        dialog.setSize(600, 500);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
@@ -837,12 +902,18 @@ class EditVariantDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
 
+        txtBarcode = VariantDialog.createStyledTextField(25);
+        txtBarcode.setText(barcode);
+        txtBarcode.setEditable(false);
+        txtBarcode.setBackground(new Color(240, 240, 240));
+
         txtColorName = VariantDialog.createStyledTextField(25);
         txtColorName.setText(colorName);
 
         txtSizeName = VariantDialog.createStyledTextField(25);
         txtSizeName.setText(sizeName);
         txtSizeName.setEditable(false);
+        txtSizeName.setBackground(new Color(240, 240, 240));
 
         txtStock = VariantDialog.createStyledTextField(25);
         txtStock.setText(String.valueOf(stock));
@@ -852,6 +923,8 @@ class EditVariantDialog {
         cmbStatus.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
         int row = 0;
+        panel.add(createLabel("Barcode"), createGbc(gbc, 0, row));
+        panel.add(txtBarcode, createGbc(gbc, 1, row++));
         panel.add(createLabel("Nama Warna *"), createGbc(gbc, 0, row));
         panel.add(txtColorName, createGbc(gbc, 1, row++));
         panel.add(createLabel("Ukuran"), createGbc(gbc, 0, row));
@@ -916,7 +989,7 @@ class EditVariantDialog {
             }
 
             try (PreparedStatement ps = conn.prepareStatement(
-                 "UPDATE product_details SET color_id = ?, stock = ?, status = ? WHERE id = ?")) {
+                 "UPDATE product_details SET color_id = ?, stock = ?, status = ?, updated_at = NOW() WHERE id = ?")) {
                 ps.setInt(1, colorId);
                 ps.setInt(2, stock);
                 ps.setString(3, status);
