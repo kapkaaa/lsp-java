@@ -24,7 +24,7 @@ public class DashboardKasir extends JFrame {
     private DefaultTableModel productTableModel;
     private DefaultTableModel cartTableModel;
     private JTable productTable, cartTable;
-    private JTextField txtSearch, txtTunai;
+    private JTextField txtSearch, txtTunai, txtBarcode;
     private JComboBox<String> cmbPaymentMethod;
     private JLabel lblTotal, lblKembalian;
     private List<CartItem> cartItems;
@@ -292,6 +292,23 @@ public class DashboardKasir extends JFrame {
         JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
         searchPanel.setBackground(Color.WHITE);
         
+        // ⭐ BARCODE SCANNER INPUT
+        searchPanel.add(new JLabel("Barcode:"));
+        txtBarcode = new JTextField(15);
+        txtBarcode.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        txtBarcode.addKeyListener(new KeyAdapter() {
+            public void keyReleased(KeyEvent e) {
+                String barcode = txtBarcode.getText().trim();
+                if (barcode.length() == 13) {
+                    processBarcode(barcode);
+                    txtBarcode.setText("");
+                }
+            }
+        });
+        searchPanel.add(txtBarcode);
+        
+        searchPanel.add(Box.createHorizontalStrut(10));
+        
         searchPanel.add(new JLabel("Cari:"));
         txtSearch = new JTextField(20);
         txtSearch.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -302,7 +319,7 @@ public class DashboardKasir extends JFrame {
         });
         searchPanel.add(txtSearch);
         
-        // ⭐ UPDATE: Kolom disesuaikan dengan product_details
+        // Kolom disesuaikan dengan product_details
         String[] columns = {"ID Detail", "Produk", "Merek", "Warna", "Size", "Stok", "Harga"};
         productTableModel = new DefaultTableModel(columns, 0) {
             @Override
@@ -525,7 +542,7 @@ public class DashboardKasir extends JFrame {
         }
     }
     
-    // ⭐ UPDATE: Load products dari product_details
+    // Load products dari product_details
     private void loadProducts() {
         productTableModel.setRowCount(0);
         try (Connection conn = DatabaseConfig.getConnection()) {
@@ -544,7 +561,7 @@ public class DashboardKasir extends JFrame {
             
             while (rs.next()) {
                 Object[] row = {
-                    rs.getInt("id"),              // product_detail_id
+                    rs.getInt("id"),
                     rs.getString("name"),
                     rs.getString("brand"),
                     rs.getString("color"),
@@ -571,7 +588,90 @@ public class DashboardKasir extends JFrame {
         }
     }
     
-    // ⭐ UPDATE: addToCart menggunakan product_detail_id
+    // ⭐ PROCESS BARCODE - AUTO ADD TO CART
+    private void processBarcode(String barcode) {
+        Connection conn = null;
+        try {
+            conn = DatabaseConfig.getConnection();
+            String sql = "SELECT pd.id, p.name, b.name as brand, c.name as color, " +
+                        "s.name as size, pd.stock, p.selling_price " +
+                        "FROM product_details pd " +
+                        "JOIN products p ON pd.product_id = p.id " +
+                        "JOIN brands b ON p.brand_id = b.id " +
+                        "JOIN colors c ON pd.color_id = c.id " +
+                        "JOIN sizes s ON pd.size_id = s.id " +
+                        "WHERE pd.barcode = ? AND pd.status = 'available' AND pd.stock > 0";
+            
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ps.setString(1, barcode);
+            ResultSet rs = ps.executeQuery();
+            
+            if (rs.next()) {
+                int productDetailId = rs.getInt("id");
+                String productName = rs.getString("name");
+                String color = rs.getString("color");
+                String size = rs.getString("size");
+                double price = rs.getDouble("selling_price");
+                int availableStock = rs.getInt("stock");
+                
+                String displayName = String.format("%s (%s, %s)", productName, color, size);
+                
+                // Check if item already in cart
+                CartItem existingItem = null;
+                for (CartItem item : cartItems) {
+                    if (item.productDetailId == productDetailId) {
+                        existingItem = item;
+                        break;
+                    }
+                }
+                
+                if (existingItem != null) {
+                    if (existingItem.quantity + 1 <= availableStock) {
+                        existingItem.quantity++;
+                        updateCartDisplay();
+                        showBarcodeSuccess(displayName, existingItem.quantity);
+                    } else {
+                        JOptionPane.showMessageDialog(this, 
+                            "Stok tidak mencukupi! Tersedia: " + availableStock,
+                            "Peringatan", JOptionPane.WARNING_MESSAGE);
+                    }
+                } else {
+                    cartItems.add(new CartItem(productDetailId, displayName, price, 1));
+                    updateCartDisplay();
+                    showBarcodeSuccess(displayName, 1);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, 
+                    "Barcode tidak ditemukan: " + barcode,
+                    "Produk Tidak Ditemukan", JOptionPane.WARNING_MESSAGE);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
+        }
+    }
+    
+    // Show success notification for barcode scan
+    private void showBarcodeSuccess(String productName, int quantity) {
+        JLabel label = new JLabel("✓ " + productName + " (Qty: " + quantity + ")");
+        label.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        label.setForeground(new Color(46, 204, 113));
+        
+        JOptionPane pane = new JOptionPane(label, JOptionPane.INFORMATION_MESSAGE);
+        JDialog dialog = pane.createDialog(this, "Berhasil Ditambahkan");
+        
+        // Auto-close after 1 second
+        Timer timer = new Timer(1000, e -> dialog.dispose());
+        timer.setRepeats(false);
+        timer.start();
+        
+        dialog.setVisible(true);
+    }
+    
+    // addToCart menggunakan product_detail_id
     private void addToCart() {
         int row = productTable.getSelectedRow();
         if (row == -1) {
@@ -579,7 +679,7 @@ public class DashboardKasir extends JFrame {
             return;
         }
         
-        int productDetailId = (int) productTable.getValueAt(row, 0);  // ⭐ product_detail_id
+        int productDetailId = (int) productTable.getValueAt(row, 0);
         String productName = (String) productTable.getValueAt(row, 1);
         String color = (String) productTable.getValueAt(row, 3);
         String size = (String) productTable.getValueAt(row, 4);
@@ -600,7 +700,7 @@ public class DashboardKasir extends JFrame {
             
             CartItem existingItem = null;
             for (CartItem item : cartItems) {
-                if (item.productDetailId == productDetailId) {  // ⭐ Check by detail_id
+                if (item.productDetailId == productDetailId) {
                     existingItem = item;
                     break;
                 }
@@ -609,7 +709,7 @@ public class DashboardKasir extends JFrame {
             if (existingItem != null) {
                 existingItem.quantity += qty;
             } else {
-                cartItems.add(new CartItem(productDetailId, displayName, price, qty));  // ⭐ Save detail_id
+                cartItems.add(new CartItem(productDetailId, displayName, price, qty));
             }
             
             updateCartDisplay();
@@ -639,7 +739,7 @@ public class DashboardKasir extends JFrame {
                 return;
             }
 
-            int availableStock = getAvailableStock(item.productDetailId);  // ⭐ Use detail_id
+            int availableStock = getAvailableStock(item.productDetailId);
             if (newQty > availableStock) {
                 JOptionPane.showMessageDialog(this, 
                     "Stok tidak mencukupi! Tersedia: " + availableStock);
@@ -653,7 +753,7 @@ public class DashboardKasir extends JFrame {
         }
     }
 
-    // ⭐ UPDATE: Get stock dari product_details
+    // Get stock dari product_details
     private int getAvailableStock(int productDetailId) {
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT stock FROM product_details WHERE id = ? AND status = 'available'";
@@ -708,7 +808,7 @@ public class DashboardKasir extends JFrame {
         updatePaymentFields();
     }
     
-    // ⭐ UPDATE: Process transaction menggunakan product_detail_id
+    // Process transaction menggunakan product_detail_id
     private void processTransaction() {
         if (cartItems.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Keranjang kosong!");
@@ -773,25 +873,25 @@ public class DashboardKasir extends JFrame {
                 transId = rs.getInt(1);
             }
             
-            // ⭐ UPDATE: Insert details menggunakan product_detail_id
+            // Insert details menggunakan product_detail_id
             String sqlDetail = "INSERT INTO transaction_details (transaction_id, product_detail_id, " +
                               "quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)";
             PreparedStatement psDetail = conn.prepareStatement(sqlDetail);
             
-            // ⭐ UPDATE: Update stock di product_details (bukan products)
+            // Update stock di product_details
             String sqlUpdateStock = "UPDATE product_details SET stock = stock - ? WHERE id = ?";
             PreparedStatement psStock = conn.prepareStatement(sqlUpdateStock);
             
             for (CartItem item : cartItems) {
                 psDetail.setInt(1, transId);
-                psDetail.setInt(2, item.productDetailId);  // ⭐ product_detail_id
+                psDetail.setInt(2, item.productDetailId);
                 psDetail.setInt(3, item.quantity);
                 psDetail.setDouble(4, item.price);
                 psDetail.setDouble(5, item.price * item.quantity);
                 psDetail.executeUpdate();
                 
                 psStock.setInt(1, item.quantity);
-                psStock.setInt(2, item.productDetailId);  // ⭐ product_detail_id
+                psStock.setInt(2, item.productDetailId);
                 psStock.executeUpdate();
             }
             
@@ -815,7 +915,7 @@ public class DashboardKasir extends JFrame {
         }
     }
 
-    // ⭐ UPDATE: Receipt dengan product_detail join
+    // Receipt dengan product_detail join
     private void showReceipt(int transId, String transCode) {
         StringBuilder receipt = new StringBuilder();
         Connection conn = null;
@@ -854,7 +954,7 @@ public class DashboardKasir extends JFrame {
             receipt.append("No.    : ").append(transCode).append("\n");
             receipt.append("─".repeat(50)).append("\n\n");
 
-            // ⭐ UPDATE: Query dengan product_detail join
+            // Query dengan product_detail join
             String sql2 = "SELECT p.name, c.name as color, s.name as size, " +
                          "td.quantity, td.unit_price, td.subtotal " +
                          "FROM transaction_details td " +
@@ -941,9 +1041,9 @@ public class DashboardKasir extends JFrame {
         }
     }
     
-    // ⭐ UPDATE: CartItem sekarang menggunakan product_detail_id
+    // CartItem menggunakan product_detail_id
     private static class CartItem {
-        int productDetailId;  // ⭐ Ganti dari productId ke productDetailId
+        int productDetailId;
         String productName;
         double price;
         int quantity;
