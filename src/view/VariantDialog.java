@@ -541,7 +541,7 @@ class AddVariantDialog {
         panel.add(txtColorName, gbc);
 
         // Stok per Ukuran *
-        JLabel stockLabel = new JLabel("Stok per Ukuran * (Barcode akan di-generate otomatis)");
+        JLabel stockLabel = new JLabel("Stok per Ukuran");
         stockLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         gbc.gridy = 2;
         panel.add(stockLabel, gbc);
