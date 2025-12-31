@@ -873,7 +873,7 @@ class EditVariantDialog {
 
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Edit Varian", true);
         dialog.setUndecorated(true);
-        dialog.setSize(600, 500);
+        dialog.setSize(550, 450);
         dialog.setLocationRelativeTo(parent);
         dialog.setLayout(new BorderLayout());
 
