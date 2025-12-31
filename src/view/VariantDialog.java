@@ -54,7 +54,7 @@ public class VariantDialog {
         JPanel searchPanel = createSearchPanel();
 
         // Variant Table
-        String[] columns = {"ID", "Barcode", "Warna", "Size", "Stok", "Status", "Foto", "Dibuat"};
+        String[] columns = {"ID", "Warna", "Size", "Stok", "Status", "Foto"};
         variantModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -68,13 +68,11 @@ public class VariantDialog {
         
         // Set column widths
         variantTable.getColumnModel().getColumn(0).setPreferredWidth(50);  // ID
-        variantTable.getColumnModel().getColumn(1).setPreferredWidth(120); // Barcode
-        variantTable.getColumnModel().getColumn(2).setPreferredWidth(100); // Warna
-        variantTable.getColumnModel().getColumn(3).setPreferredWidth(60);  // Size
-        variantTable.getColumnModel().getColumn(4).setPreferredWidth(60);  // Stok
-        variantTable.getColumnModel().getColumn(5).setPreferredWidth(100); // Status
-        variantTable.getColumnModel().getColumn(6).setPreferredWidth(80);  // Foto
-        variantTable.getColumnModel().getColumn(7).setPreferredWidth(150); // Dibuat
+        variantTable.getColumnModel().getColumn(1).setPreferredWidth(100); // Warna
+        variantTable.getColumnModel().getColumn(2).setPreferredWidth(60);  // Size
+        variantTable.getColumnModel().getColumn(3).setPreferredWidth(60);  // Stok
+        variantTable.getColumnModel().getColumn(4).setPreferredWidth(100); // Status
+        variantTable.getColumnModel().getColumn(5).setPreferredWidth(80);  // Foto
         
         JScrollPane scrollPane = new JScrollPane(variantTable);
         loadVariants();
@@ -239,13 +237,11 @@ public class VariantDialog {
                     
                     Object[] row = {
                         rs.getInt("id"),
-                        rs.getString("barcode"),
                         rs.getString("color"),
                         rs.getString("size"),
                         rs.getInt("stock"),
                         rs.getString("status"),
                         rs.getInt("photo_count") + " foto",
-                        formattedDate
                     };
                     variantModel.addRow(row);
                 }
