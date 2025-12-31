@@ -1,4 +1,4 @@
-# DistroZone-Java
+# DistroZone-Dekstop
 
 DistroZone is a desktop Point of Sale (POS) and inventory management application designed for clothing stores. Built with Java Swing, it offers a dual-role system for administrators and cashiers, featuring a modern, custom-styled user interface.
 
@@ -82,4 +82,5 @@ The source code is organized into the following packages:
 2.  Open the project folder in Apache NetBeans.
 3.  The required libraries are included in the `lib` folder and referenced in the project properties.
 4.  Locate the `view.Main.java` file in the `src` directory.
+
 5.  Right-click `Main.java` and select "Run File" to launch the application. The splash screen will appear, followed by the login form.
