@@ -491,7 +491,7 @@ class AddVariantDialog {
     private List<File> selectedPhotos;
     private JLabel photoCountLabel;
 
-    private static final String[] SIZES = {"XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"};
+    private static final String[] SIZES = {"XS  ", "S   ", "M  ", "L    ", "XL ", "2XL", "3XL", "4XL", "5XL"};
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
@@ -741,7 +741,7 @@ class AddVariantDialog {
             }
 
             if (anySuccess && failedSizes.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan dengan barcode otomatis!");
+                JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan");
             } else if (!anySuccess) {
                 JOptionPane.showMessageDialog(dialog, "Tidak ada varian yang berhasil disimpan.");
             } else {
