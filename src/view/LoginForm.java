@@ -228,7 +228,7 @@ public class LoginForm extends JFrame {
         // Pastikan operational info bisa diakses
         for (Component comp : contentPanel.getComponents()) {
             if (comp instanceof JLabel && ((JLabel) comp).getForeground().equals(new Color(52, 152, 219))) {
-                ((JLabel) comp).setText(OperationalHoursValidator.getOperationalMessage("store"));
+                ((JLabel) comp).setText(OperationalHoursValidator.getOperationalMessage("Store"));
                 break;
             }
         }

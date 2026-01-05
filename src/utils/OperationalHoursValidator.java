@@ -19,7 +19,7 @@ public class OperationalHoursValidator {
     public static boolean isOperationalHour(String serviceType) {
         try (Connection conn = DatabaseConfig.getConnection()) {
             LocalDateTime now = LocalDateTime.now();
-            String day = getDayInEnglish(now.getDayOfWeek()).toLowerCase();
+            String day = getDayInIndonesian(now.getDayOfWeek()).toLowerCase();
             LocalTime currentTime = now.toLocalTime();
             
             String sql = "SELECT open_time, close_time, status FROM operational_hours " +
@@ -60,14 +60,14 @@ public class OperationalHoursValidator {
     public static String getOperationalMessage(String serviceType) {
         try (Connection conn = DatabaseConfig.getConnection()) {
             LocalDateTime now = LocalDateTime.now();
-            String day = getDayInEnglish(now.getDayOfWeek()).toLowerCase();
+            String day = getDayInIndonesian(now.getDayOfWeek()).toLowerCase();
             
             String sql = "SELECT open_time, close_time, status FROM operational_hours " +
                         "WHERE service_type = ? AND day = ?";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, serviceType);
             ps.setString(2, day);
-            
+            System.out.println("DAY QUERY = " + day);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 String status = rs.getString("status");
@@ -100,8 +100,8 @@ public class OperationalHoursValidator {
         StringBuilder schedule = new StringBuilder();
         try (Connection conn = DatabaseConfig.getConnection()) {
             String sql = "SELECT day, open_time, close_time, status FROM operational_hours " +
-                        "WHERE service_type = ? ORDER BY FIELD(day, 'monday', 'tuesday', " +
-                        "'wednesday', 'thursday', 'friday', 'saturday', 'sunday')";
+                        "WHERE service_type = ? ORDER BY FIELD(day, 'senin', 'selasa', " +
+                        "'rabu', 'kamis', 'jumat', 'sabtu', 'minggu')";
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, serviceType);
             
