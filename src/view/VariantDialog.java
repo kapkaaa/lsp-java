@@ -26,12 +26,27 @@ public class VariantDialog {
     private Frame ownerFrame;
     private ProductManagementPanel mainPanel;
     private JTextField searchField;
+    
+    public static List<String> loadAllSizes() {
+        List<String> sizes = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT name FROM sizes ORDER BY id")) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                sizes.add(rs.getString("name"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return sizes;
+    }
 
     public VariantDialog(Frame ownerFrame, ProductManagementPanel mainPanel, int productId) {
         this.ownerFrame = ownerFrame;
         this.mainPanel = mainPanel;
         this.productId = productId;
         initDialog();
+        
     }
 
     public void initDialog() {
@@ -491,7 +506,14 @@ class AddVariantDialog {
     private List<File> selectedPhotos;
     private JLabel photoCountLabel;
 
-    private static final String[] SIZES = {"XS  ", "S   ", "M  ", "L    ", "XL ", "2XL", "3XL", "4XL", "5XL"};
+    private List<String> sizeList; // tambahkan ini sebagai field di AddVariantDialog
+    
+//    List<String> sizeList = VariantDialog.loadAllSizes(); // atau panggil method di atas
+//    if (sizeList.isEmpty()) {
+//        JOptionPane.showMessageDialog(dialog, "Belum ada ukuran tersedia di sistem!");
+//        dialog.dispose();
+//        return;
+//    }
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
@@ -502,6 +524,12 @@ class AddVariantDialog {
     }
 
     private void initDialog() {
+        List<String> sizeList = VariantDialog.loadAllSizes(); // atau panggil method di atas
+        if (sizeList.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "Belum ada ukuran tersedia di sistem!");
+            dialog.dispose();
+            return;
+        }
         dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(parent), "Tambah Varian Produk", true);
         dialog.setUndecorated(true);
         dialog.setSize(500, 500);
@@ -545,14 +573,16 @@ class AddVariantDialog {
         // Panel grid 3 kolom per baris
         JPanel sizeStockPanel = new JPanel(new GridLayout(0, 3, 15, 15));
         sizeStockPanel.setOpaque(false);
-        stockFields = new JTextField[SIZES.length];
+        stockFields = new JTextField[sizeList.size()];
 
-        for (int i = 0; i < SIZES.length; i++) {
-            String size = SIZES[i];
+        for (int i = 0; i < sizeList.size(); i++) {
+            String size = sizeList.get(i);
             JPanel itemPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
             itemPanel.setOpaque(false);
 
             JLabel label = new JLabel(size + ":");
+            label.setPreferredSize(new Dimension(40, 28));
+            label.setHorizontalAlignment(JLabel.RIGHT); 
             label.setFont(new Font("Segoe UI", Font.PLAIN, 12));
 
             JTextField field = VariantDialog.createStyledTextField(5);
@@ -566,7 +596,7 @@ class AddVariantDialog {
             sizeStockPanel.add(itemPanel);
         }
 
-        int remainder = SIZES.length % 3;
+        int remainder = sizeList.size() % 3;
         if (remainder != 0) {
             for (int i = 0; i < 3 - remainder; i++) {
                 sizeStockPanel.add(new JPanel() {{ setOpaque(false); }});
@@ -680,8 +710,8 @@ class AddVariantDialog {
                 return;
             }
 
-            for (int i = 0; i < SIZES.length; i++) {
-                String sizeName = SIZES[i];
+            for (int i = 0; i < sizeList.size(); i++) {
+                String sizeName = sizeList.get(i);
                 int stock;
                 try {
                     stock = Integer.parseInt(stockFields[i].getText().trim());
