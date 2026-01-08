@@ -16,6 +16,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
+import java.util.Vector;
 
 public class VariantDialog {
     private Point mousePoint;
@@ -39,6 +40,20 @@ public class VariantDialog {
             e.printStackTrace();
         }
         return sizes;
+    }
+    
+    public static List<VariantDialog.ComboItem> loadAllColors() {
+        List<VariantDialog.ComboItem> colors = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT id, name FROM colors ORDER BY name")) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                colors.add(new VariantDialog.ComboItem(rs.getInt("id"), rs.getString("name")));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return colors;
     }
 
     public VariantDialog(Frame ownerFrame, ProductManagementPanel mainPanel, int productId) {
@@ -501,19 +516,11 @@ class AddVariantDialog {
     private final VariantDialog variantDialog;
     private JDialog dialog;
 
-    private JTextField txtColorName;
+    private JComboBox<VariantDialog.ComboItem> cmbClr;
     private JTextField[] stockFields;
     private List<File> selectedPhotos;
     private JLabel photoCountLabel;
-
-    private List<String> sizeList; // tambahkan ini sebagai field di AddVariantDialog
-    
-//    List<String> sizeList = VariantDialog.loadAllSizes(); // atau panggil method di atas
-//    if (sizeList.isEmpty()) {
-//        JOptionPane.showMessageDialog(dialog, "Belum ada ukuran tersedia di sistem!");
-//        dialog.dispose();
-//        return;
-//    }
+    private List<String> sizeList; 
 
     public AddVariantDialog(Component parent, int productId, VariantDialog variantDialog) {
         this.parent = parent;
@@ -524,8 +531,8 @@ class AddVariantDialog {
     }
 
     private void initDialog() {
-        List<String> sizeList = VariantDialog.loadAllSizes(); // atau panggil method di atas
-        if (sizeList.isEmpty()) {
+        this.sizeList = variantDialog.loadAllSizes();
+        if (sizeList == null || sizeList.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Belum ada ukuran tersedia di sistem!");
             dialog.dispose();
             return;
@@ -557,13 +564,35 @@ class AddVariantDialog {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 8, 12, 8);
 
-        // Nama Warna
-        txtColorName = VariantDialog.createStyledTextField(25);
-        gbc.gridy = 0;
-        panel.add(new JLabel("Nama Warna *"), gbc);
-        gbc.gridy = 1;
-        panel.add(txtColorName, gbc);
+        // Warna (ComboBox)
+        List<VariantDialog.ComboItem> colorList = VariantDialog.loadAllColors();
 
+        JLabel colorLabel = new JLabel("Warna *");
+        colorLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        gbc.gridy = 0;
+        panel.add(colorLabel, gbc);
+
+        cmbClr = new JComboBox<>(new Vector<>(colorList));
+        cmbClr.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        cmbClr.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected,       boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof VariantDialog.ComboItem) {
+                    setText(((VariantDialog.ComboItem) value).toString());
+                }
+                return this;
+            }
+        });
+
+        // Optional: tambahkan opsi "Tambah Warna Baru..." di akhir
+        cmbClr.addItemListener(e -> {
+    // opsional: nanti bisa ditambah logika tambah warna baru
+        });
+
+        gbc.gridy = 1;
+        panel.add(cmbClr, gbc);
+        
         // Stok per Ukuran *
         JLabel stockLabel = new JLabel("Stok per Ukuran");
         stockLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -669,8 +698,8 @@ class AddVariantDialog {
     }
 
     private void handleSave() {
-        if (txtColorName.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(dialog, "Nama warna wajib diisi!");
+        if (cmbClr.getSelectedItem() == null) {
+            JOptionPane.showMessageDialog(dialog, "Pilih Warna Terlebih Dahulu");
             return;
         }
 
@@ -697,14 +726,18 @@ class AddVariantDialog {
     }
 
     private void saveVariants() {
-        String colorName = txtColorName.getText().trim();
+        VariantDialog.ComboItem selectedColor = (VariantDialog.ComboItem) cmbClr.getSelectedItem();
+        if (selectedColor == null) {
+            JOptionPane.showMessageDialog(dialog, "Warna tidak valid.");
+            return;
+        }
+        int colorId = selectedColor.getId();
 
         List<String> failedSizes = new ArrayList<>();
         boolean anySuccess = false;
         List<Integer> savedVariantIds = new ArrayList<>();
 
         try (Connection conn = DatabaseConfig.getConnection()) {
-            int colorId = getColorIdOrCreate(conn, colorName);
             if (colorId == -1) {
                 JOptionPane.showMessageDialog(dialog, "Gagal menyimpan warna.");
                 return;
