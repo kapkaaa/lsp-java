@@ -3,32 +3,72 @@ package utils;
 import org.mindrot.jbcrypt.BCrypt;
 
 /**
- * Utility class untuk keamanan dan enkripsi password menggunakan bcrypt
+ * SecurityUtils
+ * ----------------------------
+ * Bcrypt utility (Java ↔ Laravel compatible)
+ *
+ * - Output bcrypt format: $2y$
+ * - Compatible with Laravel Hash::check()
+ * - Cost 12 (recommended)
  */
 public class SecurityUtils {
 
-    // cost / log rounds (10–12 disarankan)
+    // bcrypt cost / log rounds
     private static final int BCRYPT_COST = 12;
 
     /**
      * Hash password menggunakan bcrypt
-     * @param password Password plain text
-     * @return Password yang sudah di-hash
+     * (Laravel compatible: $2y$)
+     *
+     * @param password plain text password
+     * @return bcrypt hash ($2y$)
      */
     public static String hashPassword(String password) {
-        return BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_COST));
+        if (password == null || password.isEmpty()) {
+            throw new IllegalArgumentException("Password tidak boleh kosong");
+        }
+
+        // Generate bcrypt hash ($2a$ by default)
+        String hash = BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_COST));
+
+        // Convert $2a$ -> $2y$ for Laravel compatibility
+        if (hash.startsWith("$2a$")) {
+            hash = "$2y$" + hash.substring(4);
+        }
+
+        return hash;
     }
 
     /**
-     * Verifikasi password dengan hash bcrypt
-     * @param password Password plain text
-     * @param hashedPassword Password bcrypt dari database
-     * @return true jika password cocok
+     * Verify password against bcrypt hash
+     * (supports $2a$ and $2y$)
+     *
+     * @param password plain text password
+     * @param hashedPassword bcrypt hash
+     * @return true if password matches
      */
     public static boolean verifyPassword(String password, String hashedPassword) {
+        if (password == null || password.isEmpty()) {
+            return false;
+        }
         if (hashedPassword == null || hashedPassword.isEmpty()) {
             return false;
         }
-        return BCrypt.checkpw(password, hashedPassword);
+
+        // jBCrypt expects $2a$, so convert back if needed
+        String normalizedHash = hashedPassword;
+        if (hashedPassword.startsWith("$2y$")) {
+            normalizedHash = "$2a$" + hashedPassword.substring(4);
+        }
+
+        return BCrypt.checkpw(password, normalizedHash);
+    }
+
+    /**
+     * Utility: check apakah hash bcrypt valid
+     */
+    public static boolean isBcryptHash(String hash) {
+        if (hash == null) return false;
+        return hash.startsWith("$2a$") || hash.startsWith("$2y$");
     }
 }
