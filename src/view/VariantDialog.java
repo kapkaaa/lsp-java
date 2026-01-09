@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import java.util.Vector;
+import view.LoadingDialog;
+import worker.MyWorker;
 
 public class VariantDialog {
     private Point mousePoint;
@@ -324,7 +326,7 @@ public class VariantDialog {
     }
 
     // ==================== BARCODE GENERATOR ====================
-    protected static String generateEAN13Barcode(Connection conn) throws SQLException {
+    public static String generateEAN13Barcode(Connection conn) throws SQLException {
         Random random = new Random();
         String barcode;
         int attempts = 0;
@@ -698,147 +700,89 @@ class AddVariantDialog {
     }
 
     private void handleSave() {
-        if (cmbClr.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(dialog, "Pilih Warna Terlebih Dahulu");
+    // Validasi warna
+    if (cmbClr.getSelectedItem() == null) {
+        JOptionPane.showMessageDialog(dialog, "Pilih Warna Terlebih Dahulu");
+        return;
+    }
+
+    // Validasi stok
+    boolean atLeastOneValid = false;
+    for (JTextField field : stockFields) {
+        String text = field.getText().trim();
+        try {
+            int stock = Integer.parseInt(text);
+            if (stock > 0) {
+                atLeastOneValid = true;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
             return;
         }
+    }
 
-        boolean atLeastOneValid = false;
-        for (JTextField field : stockFields) {
-            String text = field.getText().trim();
+    if (!atLeastOneValid) {
+        JOptionPane.showMessageDialog(dialog, "Minimal satu ukuran harus memiliki stok > 0!");
+        return;
+    }
+    
+    // Get selected color
+    VariantDialog.ComboItem selectedColor = (VariantDialog.ComboItem) cmbClr.getSelectedItem();
+    int colorId = selectedColor.getId();
+    
+    // 1. BUAT loading dialog (tapi jangan show dulu)
+    LoadingDialog loadingDialog = new LoadingDialog((Frame) SwingUtilities.getWindowAncestor(dialog));
+
+    // 2. BUAT dan CONFIGURE worker
+    MyWorker worker = new MyWorker(
+        productId, 
+        colorId, 
+        sizeList, 
+        stockFields, 
+        selectedPhotos, 
+        variantDialog, 
+        dialog
+    ) {
+        @Override
+        protected void process(List<Integer> chunks) {
+            if (!chunks.isEmpty()) {
+                int lastProgress = chunks.get(chunks.size() - 1);
+                loadingDialog.setProgress(lastProgress);
+            }
+        }
+
+        @Override
+        protected void done() {
+            loadingDialog.close();
             try {
-                int stock = Integer.parseInt(text);
-                if (stock > 0) {
-                    atLeastOneValid = true;
+                Boolean success = get();
+                if (success) {
+                    JOptionPane.showMessageDialog(dialog, "Varian berhasil disimpan!");
+                    variantDialog.loadVariants();
+                    dialog.dispose();
+                } else {
+                    String error = getErrorMessage();
+                    JOptionPane.showMessageDialog(dialog, 
+                        error != null ? error : "Gagal menyimpan varian", 
+                        "Error", 
+                        JOptionPane.ERROR_MESSAGE);
                 }
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(dialog, "Stok harus berupa angka!");
-                return;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(dialog, 
+                    "Gagal menyimpan: " + ex.getMessage(), 
+                    "Error", 
+                    JOptionPane.ERROR_MESSAGE);
             }
         }
+    };
 
-        if (!atLeastOneValid) {
-            JOptionPane.showMessageDialog(dialog, "Minimal satu ukuran harus memiliki stok > 0!");
-            return;
-        }
-
-        saveVariants();
-    }
-
-    private void saveVariants() {
-        VariantDialog.ComboItem selectedColor = (VariantDialog.ComboItem) cmbClr.getSelectedItem();
-        if (selectedColor == null) {
-            JOptionPane.showMessageDialog(dialog, "Warna tidak valid.");
-            return;
-        }
-        int colorId = selectedColor.getId();
-
-        List<String> failedSizes = new ArrayList<>();
-        boolean anySuccess = false;
-        List<Integer> savedVariantIds = new ArrayList<>();
-
-        try (Connection conn = DatabaseConfig.getConnection()) {
-            if (colorId == -1) {
-                JOptionPane.showMessageDialog(dialog, "Gagal menyimpan warna.");
-                return;
-            }
-
-            for (int i = 0; i < sizeList.size(); i++) {
-                String sizeName = sizeList.get(i);
-                int stock;
-                try {
-                    stock = Integer.parseInt(stockFields[i].getText().trim());
-                } catch (NumberFormatException e) {
-                    failedSizes.add(sizeName + " (stok tidak valid)");
-                    continue;
-                }
-
-                if (stock <= 0) {
-                    continue;
-                }
-
-                int sizeId = getSizeIdOrCreate(conn, sizeName);
-                if (sizeId == -1) {
-                    failedSizes.add(sizeName + " (gagal ukuran)");
-                    continue;
-                }
-
-                // Cek duplikat
-                try (PreparedStatement check = conn.prepareStatement(
-                        "SELECT 1 FROM product_details WHERE product_id = ? AND color_id = ? AND size_id = ?")) {
-                    check.setInt(1, productId);
-                    check.setInt(2, colorId);
-                    check.setInt(3, sizeId);
-                    if (check.executeQuery().next()) {
-                        failedSizes.add(sizeName + " (duplikat)");
-                        continue;
-                    }
-                }
-
-                // Generate barcode
-                String barcode = VariantDialog.generateEAN13Barcode(conn);
-
-                // Insert with barcode and timestamps
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO product_details (product_id, color_id, size_id, stock, status, barcode, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())",
-                        Statement.RETURN_GENERATED_KEYS)) {
-                    ps.setInt(1, productId);
-                    ps.setInt(2, colorId);
-                    ps.setInt(3, sizeId);
-                    ps.setInt(4, stock);
-                    ps.setString(5, "available");
-                    ps.setString(6, barcode);
-                    ps.executeUpdate();
-                    
-                    ResultSet rs = ps.getGeneratedKeys();
-                    if (rs.next()) {
-                        savedVariantIds.add(rs.getInt(1));
-                    }
-                    anySuccess = true;
-                }
-            }
-
-            // Upload foto untuk semua varian yang berhasil disimpan
-            if (anySuccess && !selectedPhotos.isEmpty()) {
-                uploadPhotosForVariants(conn, savedVariantIds);
-            }
-
-            if (anySuccess && failedSizes.isEmpty()) {
-                JOptionPane.showMessageDialog(dialog, "Varian berhasil ditambahkan");
-            } else if (!anySuccess) {
-                JOptionPane.showMessageDialog(dialog, "Tidak ada varian yang berhasil disimpan.");
-            } else {
-                JOptionPane.showMessageDialog(dialog, "Beberapa ukuran gagal disimpan:\n" + String.join("\n", failedSizes));
-            }
-
-            variantDialog.loadVariants();
-            dialog.dispose();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(dialog, "Error database: " + e.getMessage());
-        }
-    }
-
-    private void uploadPhotosForVariants(Connection conn, List<Integer> variantIds) {
-        for (Integer variantId : variantIds) {
-            for (File photo : selectedPhotos) {
-                try {
-                    String photoUrl = SupabaseStorage.uploadProductPhoto(productId, photo);
-                    if (photoUrl != null) {
-                        try (PreparedStatement ps = conn.prepareStatement(
-                                "INSERT INTO product_photos (product_detail_id, photo_url) VALUES (?, ?)")) {
-                            ps.setInt(1, variantId);
-                            ps.setString(2, photoUrl);
-                            ps.executeUpdate();
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
+    // 3. EXECUTE worker DULU (worker mulai jalan di background)
+    worker.execute();
+    
+    // 4. BARU show loading dialog (ini akan block UI tapi worker tetap jalan)
+    loadingDialog.setVisible(true);
+}
 
     private int getColorIdOrCreate(Connection conn, String name) {
         try {
