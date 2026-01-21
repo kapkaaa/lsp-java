@@ -7,6 +7,12 @@
             <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/view/LoginForm.java</file>
             <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/view/VariantDialog.java</file>
             <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/view/DashboardAdmin.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/view/LoadingDialog.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/worker/MyWorker.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/utils/OperationalHoursValidator.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/config/SupabaseConfig.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/utils/SupabaseStorage.java</file>
+            <file>file:/D:/DREAM/LSP/DistroZone-Dekstop/src/view/Splash.java</file>
         </group>
     </open-files>
 </project-private>

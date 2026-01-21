@@ -124,7 +124,7 @@ public class Splash extends JWindow {
 
     private JLabel createLogoLabel() {
         JLabel logoLabel = new JLabel();
-        ImageIcon originalIcon = new ImageIcon("src/images/Logo.jpg");
+        ImageIcon originalIcon = new ImageIcon("src/images/Logo.PNG");
 
         Image img = originalIcon.getImage();
         Image scaledImg = img.getScaledInstance(120, 120, Image.SCALE_SMOOTH);
